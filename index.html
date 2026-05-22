@@ -736,7 +736,7 @@ function panel(x,y,w,h,title){
 // ── UI per state ───────────────────────────────────────────────
 function uiTitle(){
   const p=0.45+0.55*Math.abs(Math.sin(fr*0.038));
-  txt('尺　玉　コ　ン　ク　ー　ル',W/2,H*0.35,fs(0.06,48),'#ffcc44','center',20);
+  txt(IS_MOBILE?'尺玉コンクール':'尺　玉　コ　ン　ク　ー　ル',W/2,H*0.35,IS_MOBILE?fs(0.12,52):fs(0.06,48),'#ffcc44','center',20);
   txt('全国打ち上げ花火競技大会',W/2,H*0.46,fs(0.03,22),'rgba(255,210,130,0.85)','center',6);
   X.globalAlpha=p;
   txt(IS_MOBILE?'タップで競技開始':'スペース・タップで競技開始',W/2,H*0.60,fs(0.025,18),'rgba(255,240,180,0.9)');
