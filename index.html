@@ -948,8 +948,8 @@ function uiResults(){
   const hasFinale=finaleShots.length>0;
   const detailRows=stageScores.length+(hasFinale?1:0);
   const dstep=IS_MOBILE?26:30;
-  const pw=Math.min(W*0.88,420),ph=IS_MOBILE?198+detailRows*dstep:H*0.46;
-  const px=W/2-pw/2,py=IS_MOBILE?H*0.04:H*0.25;
+  const pw=Math.min(W*0.88,420),ph=IS_MOBILE?205+detailRows*dstep:H*0.46;
+  const px=W/2-pw/2,py=IS_MOBILE?H*0.36:H*0.25;
   // Panel (custom draw for results — slightly open to show fireworks behind)
   X.save();X.shadowColor='rgba(255,160,0,0.6)';X.shadowBlur=26;
   X.fillStyle='rgba(2,3,18,0.84)';X.strokeStyle='rgba(255,205,60,0.85)';X.lineWidth=1.8;
@@ -973,16 +973,16 @@ function uiResults(){
   txt(`${stageTot} / 300 点`,W/2,py+177,fs(0.075,34),'rgba(255,245,160,0.96)','center',10);
   // Stage breakdown — compact
   stageScores.forEach((ss,i)=>{
-    txt(`${STAGE_CFG[i].label}　${ss.avg}点`,W/2,py+212+i*dstep,fs(0.022,13),'rgba(205,185,130,0.78)');
+    txt(`${STAGE_CFG[i].label}　${ss.avg}点`,W/2,py+212+i*dstep,fs(0.04,16),'rgba(205,185,130,0.92)');
   });
   if(hasFinale){
     const favg=Math.round(finaleShots.reduce((a,s)=>a+s.total,0)/finaleShots.length);
-    txt(`大フィナーレ　${favg}点`,W/2,py+212+stageScores.length*dstep,fs(0.022,13),'rgba(170,215,255,0.78)');
+    txt(`大フィナーレ　${favg}点`,W/2,py+212+stageScores.length*dstep,fs(0.04,16),'rgba(170,215,255,0.92)');
   }
   // Tap prompt just below card
   X.globalAlpha=0.5+0.5*Math.abs(Math.sin(fr*0.065));
   txt(IS_MOBILE?'タップでタイトルへ':'タップ / スペースでタイトルへ',
-      W/2,py+ph+30,fs(0.025,15),'rgba(255,225,155,0.9)');
+      W/2,py+ph+36,fs(0.05,20),'rgba(255,225,155,0.95)');
   X.globalAlpha=1;
 }
 
