@@ -137,40 +137,29 @@ class StarParticle{
     const a=this.life/this.maxLife,col=this.getCol();
     const n=this.trail.length;
     if(n>1){
-      // Wide faint halo trail
+      // Dim colored full trail — thin needle streak
       X.beginPath();X.moveTo(this.trail[0].x,this.trail[0].y);
       for(let i=1;i<n;i++)X.lineTo(this.trail[i].x,this.trail[i].y);
-      X.globalAlpha=a*0.22;X.strokeStyle=col;X.lineWidth=4.5;X.lineCap='round';X.stroke();
-      // Bright narrow core trail (front 60%)
-      const m=~~(n*0.4);
+      X.globalAlpha=a*0.42;X.strokeStyle=col;X.lineWidth=1.2;X.lineCap='round';X.stroke();
+      // Bright white hot leading section (front 55%)
+      const m=Math.max(0,~~(n*0.45));
       X.beginPath();X.moveTo(this.trail[m].x,this.trail[m].y);
       for(let i=m+1;i<n;i++)X.lineTo(this.trail[i].x,this.trail[i].y);
-      X.globalAlpha=a*0.82;X.strokeStyle=col;X.lineWidth=1.6;X.stroke();
+      X.globalAlpha=a*0.92;X.strokeStyle='#fff9e0';X.lineWidth=0.85;X.stroke();
     }
-    // Soft bloom glow (skip when heavy load)
-    if(!gHeavy&&a>0.2){
-      X.globalAlpha=a*0.28;X.fillStyle=col;
-      X.beginPath();X.arc(this.x,this.y,7,0,Math.PI*2);X.fill();
+    // Colored halo glow around head (skip when heavy)
+    if(!gHeavy&&a>0.15){
+      X.globalAlpha=a*0.30;X.fillStyle=col;
+      X.beginPath();X.arc(this.x,this.y,6,0,Math.PI*2);X.fill();
     }
-    // 4-pointed star head: white outer + colored inner
+    // Bright white spark head
     X.globalAlpha=a;
-    X.fillStyle='#fff';
-    X.beginPath();
-    X.moveTo(this.x,this.y-3.6);X.lineTo(this.x+1.0,this.y-1.0);
-    X.lineTo(this.x+3.6,this.y);X.lineTo(this.x+1.0,this.y+1.0);
-    X.lineTo(this.x,this.y+3.6);X.lineTo(this.x-1.0,this.y+1.0);
-    X.lineTo(this.x-3.6,this.y);X.lineTo(this.x-1.0,this.y-1.0);
-    X.closePath();X.fill();
-    X.fillStyle=col;
-    X.beginPath();
-    X.moveTo(this.x,this.y-2.3);X.lineTo(this.x+0.65,this.y-0.65);
-    X.lineTo(this.x+2.3,this.y);X.lineTo(this.x+0.65,this.y+0.65);
-    X.lineTo(this.x,this.y+2.3);X.lineTo(this.x-0.65,this.y+0.65);
-    X.lineTo(this.x-2.3,this.y);X.lineTo(this.x-0.65,this.y-0.65);
-    X.closePath();X.fill();
-    if(this.gl&&!gHeavy&&a>0.35&&Math.random()<0.13){
-      X.globalAlpha=a*0.9;X.fillStyle='#fffff8';
-      X.beginPath();X.arc(this.x,this.y,4.5,0,Math.PI*2);X.fill();
+    X.fillStyle='#fff';X.beginPath();X.arc(this.x,this.y,2.1,0,Math.PI*2);X.fill();
+    // Colored core dot
+    X.fillStyle=col;X.beginPath();X.arc(this.x,this.y,1.1,0,Math.PI*2);X.fill();
+    if(this.gl&&!gHeavy&&a>0.38&&Math.random()<0.14){
+      X.globalAlpha=a*0.82;X.fillStyle='#fffff0';
+      X.beginPath();X.arc(this.x,this.y,4.8,0,Math.PI*2);X.fill();
     }
     X.globalAlpha=1;
   }
@@ -227,7 +216,7 @@ class Firework{
     this.stars=[];this.pending=[];
     const q=Math.max(0,1-Math.abs(off)*0.045);
     const sN=Math.abs(off)*0.13,lN=Math.abs(off)*0.17,eG=off*0.0038;
-    const bs=H*0.0118,bl=110+q*52;
+    const bs=H*0.0140,bl=110+q*52;
     switch(typeId){
       case'kiku':  this._kiku(x,y,q,sN,lN,eG,bs,bl,rings);break;
       case'botan': this._botan(x,y,q,sN,lN,eG,bs,bl,rings);break;
@@ -250,27 +239,27 @@ class Firework{
   _kiku(x,y,q,sN,lN,eG,bs,bl,rings){
     const n=~~(88*PM);
     for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2,d=(1-q)*0.003*Math.sin(a);
-      this.stars.push(this._mk(x,y,a+d,bs,['#ffee44','#ffaa00','#ff7700','#882200'],bl,17,1,sN,lN,true,eG));}
+      this.stars.push(this._mk(x,y,a+d,bs,['#ffee44','#ffaa00','#ff7700','#882200'],bl,26,1,sN,lN,true,eG));}
     if(rings>=2){const n2=~~(55*PM);for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2)*Math.PI*2;
-      this.stars.push(this._mk(x,y,a,bs*0.5,['#ffffff','#ffffcc','#eeee88'],bl*0.72,13,1,sN*.5,lN*.5,true,eG*.6));}}
+      this.stars.push(this._mk(x,y,a,bs*0.5,['#ffffff','#ffffcc','#eeee88'],bl*0.72,18,1,sN*.5,lN*.5,true,eG*.6));}}
     if(rings>=3){const n3=~~(32*PM);for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2;
       this.stars.push(this._mk(x,y,a,bs*0.27,['#ffffff','#ffeecc'],bl*0.52,9,1,sN*.2,0,false,0));}}
   }
   _botan(x,y,q,sN,lN,eG,bs,bl,rings){
     const n=~~(108*PM);
     for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2,d=(1-q)*0.003*Math.sin(a),sp=bs*(0.82+Math.random()*0.36);
-      this.stars.push(this._mk(x,y,a+d,sp,['#ff1144','#ff5566','#ffaaaa','#ffffff'],bl,10,0.78,sN,lN,false,eG));}
+      this.stars.push(this._mk(x,y,a+d,sp,['#ff1144','#ff5566','#ffaaaa','#ffffff'],bl,24,0.78,sN,lN,false,eG));}
     if(rings>=2){const n2=~~(65*PM);for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2)*Math.PI*2;
-      this.stars.push(this._mk(x,y,a,bs*0.52,['#ff66aa','#ffaacc','#ffddee'],bl*.70,8,0.7,sN*.4,lN*.4,false,eG*.6));}}
+      this.stars.push(this._mk(x,y,a,bs*0.52,['#ff66aa','#ffaacc','#ffddee'],bl*.70,16,0.7,sN*.4,lN*.4,false,eG*.6));}}
     if(rings>=3){const n3=~~(38*PM);for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2;
       this.stars.push(this._mk(x,y,a,bs*0.29,['#ffffff','#ffddff'],bl*.52,6,0.6,sN*.15,0,false,0));}}
   }
   _yanagi(x,y,q,sN,lN,eG,bs,bl){
     const n=~~(78*PM),n2=~~(44*PM);
     for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2,d=(1-q)*0.004*Math.sin(a);
-      this.stars.push(this._mk(x,y,a+d,bs*1.05,['#ffeeaa','#ffcc55','#aaa966','#555544'],bl*1.35,22,2.7,sN,lN,true,eG));}
+      this.stars.push(this._mk(x,y,a+d,bs*1.05,['#ffeeaa','#ffcc55','#aaa966','#555544'],bl*1.35,30,2.7,sN,lN,true,eG));}
     for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2)*Math.PI*2;
-      this.stars.push(this._mk(x,y,a,bs*0.55,['#ffffff','#ddddff','#9999bb','#444455'],bl*.72,18,2.5,sN*.5,lN*.5,true,eG*.5));}
+      this.stars.push(this._mk(x,y,a,bs*0.55,['#ffffff','#ddddff','#9999bb','#444455'],bl*.72,24,2.5,sN*.5,lN*.5,true,eG*.5));}
   }
   _kamuro(x,y,q,sN,lN,bs,bl){
     const n=~~(95*PM),n2=~~(48*PM);
@@ -298,9 +287,9 @@ class Firework{
   _henko(x,y,q,sN,lN,eG,bs,bl,rings){
     const n=~~(85*PM);
     for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2,d=(1-q)*0.003*Math.sin(a);
-      this.stars.push(this._mk(x,y,a+d,bs,['#ff2200','#ff8800','#ffff00','#ffffff','#88aaff','#4466cc'],bl*1.1,16,1,sN,lN,false,eG));}
+      this.stars.push(this._mk(x,y,a+d,bs,['#ff2200','#ff8800','#ffff00','#ffffff','#88aaff','#4466cc'],bl*1.1,24,1,sN,lN,false,eG));}
     if(rings>=2){const n2=~~(55*PM);for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2)*Math.PI*2;
-      this.stars.push(this._mk(x,y,a,bs*0.50,['#0044ff','#4499ff','#88ccff','#ffffff','#ffccff'],bl*.74,12,1,sN*.5,lN*.5,false,eG*.6));}}
+      this.stars.push(this._mk(x,y,a,bs*0.50,['#0044ff','#4499ff','#88ccff','#ffffff','#ffccff'],bl*.74,18,1,sN*.5,lN*.5,false,eG*.6));}}
     if(rings>=3){const n3=~~(35*PM);for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2;
       this.stars.push(this._mk(x,y,a,bs*0.28,['#ffff00','#ffffff','#ccffff'],bl*.53,9,0.9,sN*.15,0,false,0));}}
   }
@@ -397,13 +386,20 @@ class Firework{
   }
   draw(){
     this.stars.forEach(s=>s.draw());
-    if(this.age<=8){
-      const r=(8-this.age)/8;
-      const grd=X.createRadialGradient(this.x,this.y,0,this.x,this.y,H*0.12*r);
-      grd.addColorStop(0,'rgba(255,255,255,1)');grd.addColorStop(1,'rgba(255,200,50,0)');
-      X.globalAlpha=r*0.75;X.fillStyle=grd;
-      X.beginPath();X.arc(this.x,this.y,H*0.12*r,0,Math.PI*2);X.fill();
-      X.globalAlpha=1;
+    // Center glow: instant flash then slow-fade lingering core
+    if(this.age<=48){
+      let r,rad;
+      if(this.age<=10){r=(10-this.age)/10;rad=H*0.13*r;}
+      else{r=Math.pow(1-(this.age-10)/38,2)*0.42;rad=H*0.075*r;}
+      if(r>0.01){
+        const grd=X.createRadialGradient(this.x,this.y,0,this.x,this.y,rad);
+        grd.addColorStop(0,'rgba(255,255,255,1)');
+        grd.addColorStop(0.28,'rgba(255,240,140,0.75)');
+        grd.addColorStop(1,'rgba(255,150,10,0)');
+        X.globalAlpha=r*0.90;X.fillStyle=grd;
+        X.beginPath();X.arc(this.x,this.y,rad,0,Math.PI*2);X.fill();
+        X.globalAlpha=1;
+      }
     }
   }
 }
