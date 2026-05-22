@@ -105,10 +105,9 @@ function updateDrawSparkles(){
     const t=1-s.age/s.life,a=t*0.5*Math.abs(Math.sin(s.age*0.08));
     if(a<0.02)continue;
     X.globalAlpha=a;X.fillStyle=s.col;
-    if(!IS_MOBILE){X.shadowColor=s.col;X.shadowBlur=4;}
     X.beginPath();X.arc(s.x,s.y,1.2,0,Math.PI*2);X.fill();
   }
-  X.shadowBlur=0;X.globalAlpha=1;
+  X.globalAlpha=1;
 }
 
 // ── StarParticle ───────────────────────────────────────────────
@@ -136,20 +135,44 @@ class StarParticle{
   }
   draw(){
     const a=this.life/this.maxLife,col=this.getCol();
-    if(!IS_MOBILE){X.shadowColor=col;X.shadowBlur=6+(1-a)*4;}
-    if(this.trail.length>1){
+    const n=this.trail.length;
+    if(n>1){
+      // Wide faint halo trail
       X.beginPath();X.moveTo(this.trail[0].x,this.trail[0].y);
-      for(let i=1;i<this.trail.length;i++)X.lineTo(this.trail[i].x,this.trail[i].y);
-      X.globalAlpha=a*0.62;X.strokeStyle=col;X.lineWidth=2.4;X.stroke();
+      for(let i=1;i<n;i++)X.lineTo(this.trail[i].x,this.trail[i].y);
+      X.globalAlpha=a*0.22;X.strokeStyle=col;X.lineWidth=4.5;X.lineCap='round';X.stroke();
+      // Bright narrow core trail (front 60%)
+      const m=~~(n*0.4);
+      X.beginPath();X.moveTo(this.trail[m].x,this.trail[m].y);
+      for(let i=m+1;i<n;i++)X.lineTo(this.trail[i].x,this.trail[i].y);
+      X.globalAlpha=a*0.82;X.strokeStyle=col;X.lineWidth=1.6;X.stroke();
     }
+    // Soft bloom glow (skip when heavy load)
+    if(!gHeavy&&a>0.2){
+      X.globalAlpha=a*0.28;X.fillStyle=col;
+      X.beginPath();X.arc(this.x,this.y,7,0,Math.PI*2);X.fill();
+    }
+    // 4-pointed star head: white outer + colored inner
     X.globalAlpha=a;
-    X.fillStyle='#fff';X.beginPath();X.arc(this.x,this.y,2.5,0,Math.PI*2);X.fill();
-    X.fillStyle=col;X.beginPath();X.arc(this.x,this.y,1.5,0,Math.PI*2);X.fill();
-    if(this.gl&&a>0.35&&Math.random()<0.13){
+    X.fillStyle='#fff';
+    X.beginPath();
+    X.moveTo(this.x,this.y-3.6);X.lineTo(this.x+1.0,this.y-1.0);
+    X.lineTo(this.x+3.6,this.y);X.lineTo(this.x+1.0,this.y+1.0);
+    X.lineTo(this.x,this.y+3.6);X.lineTo(this.x-1.0,this.y+1.0);
+    X.lineTo(this.x-3.6,this.y);X.lineTo(this.x-1.0,this.y-1.0);
+    X.closePath();X.fill();
+    X.fillStyle=col;
+    X.beginPath();
+    X.moveTo(this.x,this.y-2.3);X.lineTo(this.x+0.65,this.y-0.65);
+    X.lineTo(this.x+2.3,this.y);X.lineTo(this.x+0.65,this.y+0.65);
+    X.lineTo(this.x,this.y+2.3);X.lineTo(this.x-0.65,this.y+0.65);
+    X.lineTo(this.x-2.3,this.y);X.lineTo(this.x-0.65,this.y-0.65);
+    X.closePath();X.fill();
+    if(this.gl&&!gHeavy&&a>0.35&&Math.random()<0.13){
       X.globalAlpha=a*0.9;X.fillStyle='#fffff8';
-      X.beginPath();X.arc(this.x,this.y,4.2,0,Math.PI*2);X.fill();
+      X.beginPath();X.arc(this.x,this.y,4.5,0,Math.PI*2);X.fill();
     }
-    X.shadowBlur=0;X.globalAlpha=1;
+    X.globalAlpha=1;
   }
 }
 
@@ -164,8 +187,16 @@ class LightBurst{
   draw(){
     const t=this.life/this.maxLife,expand=1-Math.pow(1-t,2);
     const len=this.maxLen*expand,alpha=t*0.22;
-    X.save();X.globalAlpha=alpha;X.strokeStyle=this.col;
-    X.lineWidth=2.5;if(!IS_MOBILE){X.shadowColor=this.col;X.shadowBlur=12;}
+    X.save();
+    // Wide faint halo rays
+    X.globalAlpha=alpha*0.4;X.strokeStyle=this.col;X.lineWidth=4;X.lineCap='round';
+    for(let i=0;i<14;i++){
+      const ang=(i/14)*Math.PI*2;
+      X.beginPath();X.moveTo(this.x,this.y);
+      X.lineTo(this.x+Math.cos(ang)*len,this.y+Math.sin(ang)*len);X.stroke();
+    }
+    // Thin bright core rays
+    X.globalAlpha=alpha*1.4;X.lineWidth=1.1;
     for(let i=0;i<14;i++){
       const ang=(i/14)*Math.PI*2;
       X.beginPath();X.moveTo(this.x,this.y);
@@ -485,11 +516,11 @@ const STAGE_CFG=[
 const FINALE_WAVES=[
   {t:0,   rockets:[{xp:.32,d:0},{xp:.50,d:14},{xp:.68,d:28}],rings:2},
   {t:95,  rockets:[{xp:.22,d:0},{xp:.40,d:12},{xp:.60,d:24},{xp:.78,d:36}],rings:2},
-  {t:195, rockets:[{xp:.28,d:0},{xp:.44,d:10},{xp:.56,d:20},{xp:.72,d:30}],rings:3},
-  {t:300, rockets:[{xp:.18,d:0},{xp:.32,d:8},{xp:.50,d:16},{xp:.68,d:24},{xp:.82,d:32}],rings:3},
-  {t:405, rockets:[{xp:.13,d:0},{xp:.25,d:7},{xp:.38,d:14},{xp:.50,d:21},{xp:.62,d:28},{xp:.75,d:35},{xp:.87,d:42}],rings:3},
+  {t:195, rockets:[{xp:.28,d:0},{xp:.44,d:10},{xp:.56,d:20},{xp:.72,d:30}],rings:2},
+  {t:300, rockets:[{xp:.18,d:0},{xp:.32,d:8},{xp:.50,d:16},{xp:.68,d:24},{xp:.82,d:32}],rings:2},
+  {t:405, rockets:[{xp:.13,d:0},{xp:.25,d:7},{xp:.38,d:14},{xp:.50,d:21},{xp:.62,d:28},{xp:.75,d:35},{xp:.87,d:42}],rings:2},
   {t:510, rockets:[{xp:.10,d:0},{xp:.20,d:5},{xp:.30,d:10},{xp:.40,d:15},{xp:.50,d:20},
-                   {xp:.60,d:15},{xp:.70,d:10},{xp:.80,d:5},{xp:.90,d:0}],rings:3},
+                   {xp:.60,d:15},{xp:.70,d:10},{xp:.80,d:5},{xp:.90,d:0}],rings:2},
 ];
 const FINALE_END=700;
 
@@ -503,6 +534,7 @@ let peakFlash=0,shakeAmt=0,boomCd=0;
 let crowdCheer=0,skyGlow=0,titleT=0;
 let finaleTimer=0,finaleWave=0,finaleRockets=[],finaleShots=[],finaleIntroT=0;
 let colorFlash=0,colorFlashCol='#ffeeaa';
+let gHeavy=false,ptCount=0;
 
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=~~(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
 
@@ -568,7 +600,8 @@ function explodeFinaleRocket(r){
   if(r.exploded||r.dead)return;
   r.exploded=true;r.dead=true;
   const off=r.offset;
-  fws.push(new Firework(r.x,r.y,off,r.typeId,r.rings));
+  const capRings=ptCount>(IS_MOBILE?400:1400)?1:r.rings;
+  fws.push(new Firework(r.x,r.y,off,r.typeId,capRings));
   lightBursts.push(new LightBurst(r.x,r.y,r.typeId));
   colorFlash=14;colorFlashCol=TYPE_COLORS[r.typeId]||'#ffeeaa';
   if(boomCd<=0){playBoom(2.0);boomCd=7;}
@@ -899,7 +932,10 @@ function loop(){
   lightBursts=lightBursts.filter(lb=>!lb.dead);
 
   // Fireworks
-  fws.forEach(fw=>fw.update());fws.forEach(fw=>fw.draw());
+  fws.forEach(fw=>fw.update());
+  ptCount=fws.reduce((s,fw)=>s+fw.stars.length,0);
+  gHeavy=ptCount>(IS_MOBILE?500:1800);
+  fws.forEach(fw=>fw.draw());
   fws=fws.filter(fw=>!fw.done);
 
   // Competition rockets
