@@ -228,8 +228,8 @@ class Firework{
   constructor(x,y,off,typeId,rings){
     this.x=x;this.y=y;this.age=0;this.done=false;
     this.stars=[];this.pending=[];
-    const q=Math.max(0,1-Math.abs(off)*0.045);
-    const sN=Math.abs(off)*0.13,lN=Math.abs(off)*0.17,eG=off*0.0038;
+    const q=Math.max(0,1-Math.abs(off)*0.016);
+    const sN=Math.max(0,(Math.abs(off)-3)*0.038),lN=Math.max(0,(Math.abs(off)-3)*0.048),eG=off*0.0018;
     const bs=H*0.0140,bl=110+q*52;
     switch(typeId){
       case'kiku':  this._kiku(x,y,q,sN,lN,eG,bs,bl,rings);break;
