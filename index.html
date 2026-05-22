@@ -911,7 +911,7 @@ function uiFinale(){
     finaleWave++;
   }
   // 大締め：全ランダム花火が終わったら中央から三重芯の大尺玉を1発
-  if(!finaleCloseFired&&finaleTimer>=640&&finaleRockets.length===0){
+  if(!finaleCloseFired&&finaleTimer>=700&&finaleRockets.length===0){
     const gr=new FinaleRocket(W*0.5,'kiku',3,0);
     gr.grand=true;finaleRockets.push(gr);finaleCloseFired=true;
   }
