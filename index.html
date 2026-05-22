@@ -197,6 +197,22 @@ class LightBurst{
   }
 }
 
+// ── SmokePuff ──────────────────────────────────────────────────
+class SmokePuff{
+  constructor(x,y,r){
+    this.x=x+(Math.random()-0.5)*r;this.y=y+(Math.random()-0.5)*r*0.5;
+    this.vx=(Math.random()-0.5)*0.55;this.vy=-0.45-Math.random()*0.45;
+    this.r=r*(0.30+Math.random()*0.25);this.life=120+~~(Math.random()*90);
+    this.maxLife=this.life;this.dead=false;
+  }
+  update(){this.x+=this.vx;this.y+=this.vy;this.vy*=0.988;this.r*=1.007;if(--this.life<=0)this.dead=true;}
+  draw(){
+    const t=this.life/this.maxLife;
+    X.globalAlpha=t*0.12;X.fillStyle='#b8b4ae';
+    X.beginPath();X.arc(this.x,this.y,this.r,0,Math.PI*2);X.fill();X.globalAlpha=1;
+  }
+}
+
 // ── Firework types ──────────────────────────────────────────────
 const FW_TYPES=[
   {id:'kiku',    name:'菊',        sub:'黄金菊'},
@@ -220,7 +236,7 @@ const FW_TARGET_H={
   senrin:   [0.12,0.22],
   henko:    [0.08,0.18],
   oyanagi:  [0.13,0.24],
-  starmine: [0.50,0.64],  // 地上付近・低空
+  starmine: [0.15,0.35],
   yashi:    [0.15,0.27],
   kaminari: [0.07,0.16],
   kowari:   [0.20,0.34],
@@ -261,14 +277,15 @@ class Firework{
     if(rings>=3){const n3=~~(32*PM);for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2;
       this.stars.push(this._mk(x,y,a,bs*0.27,['#ffffff','#ffeecc'],bl*0.52,9,1,sN*.2,0,false,0));}}
   }
+  // 牡丹：ランダム角度でふわっと広がる球形ボール（菊の均等スポーク型とは対照的）
   _botan(x,y,q,sN,lN,eG,bs,bl,rings){
     const n=~~(108*PM);
-    for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2,d=(1-q)*0.003*Math.sin(a),sp=bs*(0.82+Math.random()*0.36);
-      this.stars.push(this._mk(x,y,a+d,sp,['#ff1144','#ff5566','#ffaaaa','#ffffff'],bl,24,0.78,sN,lN,false,eG));}
-    if(rings>=2){const n2=~~(65*PM);for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2)*Math.PI*2;
-      this.stars.push(this._mk(x,y,a,bs*0.52,['#ff66aa','#ffaacc','#ffddee'],bl*.70,16,0.7,sN*.4,lN*.4,false,eG*.6));}}
+    for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,d=(1-q)*0.003*Math.sin(a),sp=bs*(0.65+Math.random()*0.70);
+      this.stars.push(this._mk(x,y,a+d,sp,['#ff1144','#ff5566','#ffaaaa','#ffffff'],bl,24,0.28,sN,lN,false,eG));}
+    if(rings>=2){const n2=~~(65*PM);for(let i=0;i<n2;i++){const a=Math.random()*Math.PI*2;
+      this.stars.push(this._mk(x,y,a,bs*0.52,['#ff66aa','#ffaacc','#ffddee'],bl*.70,16,0.22,sN*.4,lN*.4,false,eG*.6));}}
     if(rings>=3){const n3=~~(38*PM);for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2;
-      this.stars.push(this._mk(x,y,a,bs*0.29,['#ffffff','#ffddff'],bl*.52,6,0.6,sN*.15,0,false,0));}}
+      this.stars.push(this._mk(x,y,a,bs*0.29,['#ffffff','#ffddff'],bl*.52,6,0.18,sN*.15,0,false,0));}}
   }
   _yanagi(x,y,q,sN,lN,eG,bs,bl){
     const n=~~(78*PM),n2=~~(44*PM);
@@ -309,17 +326,17 @@ class Firework{
     if(rings>=3){const n3=~~(35*PM);for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2;
       this.stars.push(this._mk(x,y,a,bs*0.28,['#ffff00','#ffffff','#ccffff'],bl*.53,9,0.9,sN*.15,0,false,0));}}
   }
-  // 大柳：超ロング金色垂れ柳
+  // 大柳：上方噴出し重力で急落下する金色大瀑布（柳の均等球形とは異なる噴水型）
   _oyanagi(x,y,q,sN,lN,eG,bs,bl){
-    const n=~~(110*PM);
-    for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2,d=(1-q)*0.004*Math.sin(a);
-      this.stars.push(this._mk(x,y,a+d,bs*1.25,['#fffacc','#ffee99','#ddbb55','#aa8833','#664411','#332200'],bl*1.65,30,3.4,sN,lN,true,eG));}
-    const n2=~~(65*PM);
-    for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2)*Math.PI*2;
-      this.stars.push(this._mk(x,y,a,bs*0.65,['#ffffff','#ffffee','#ddddaa','#999966','#554433'],bl*1.2,24,2.9,sN*.5,lN*.5,true,eG*.5));}
+    const n=~~(130*PM);
+    for(let i=0;i<n;i++){const a=-Math.PI/2+(Math.random()-0.5)*Math.PI*1.7,sp=bs*(0.9+Math.random()*0.85);
+      this.stars.push(this._mk(x,y,a,sp,['#fffacc','#ffee99','#ddbb55','#aa8833','#664411','#332200'],bl*2.0,32,5.5,sN*.8,lN*.7,true,eG));}
+    const n2=~~(70*PM);
+    for(let i=0;i<n2;i++){const a=-Math.PI/2+(Math.random()-0.5)*Math.PI*1.9,sp=bs*(0.48+Math.random()*0.42);
+      this.stars.push(this._mk(x,y,a,sp,['#ffffff','#ffffee','#ddddaa','#aa8844','#554433'],bl*1.55,28,4.8,sN*.5,lN*.5,true,eG*.5));}
     const n3=~~(32*PM);
-    for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2+0.05;
-      this.stars.push(this._mk(x,y,a,bs*0.32,['#ffffff','#ffffcc'],bl*0.9,18,2.2,sN*.2,0,false,eG*.3));}
+    for(let i=0;i<n3;i++){const a=-Math.PI/2+(Math.random()-0.5)*Math.PI*1.4;
+      this.stars.push(this._mk(x,y,a,bs*0.30,['#ffffff','#ffffcc'],bl*0.9,18,3.5,sN*.2,0,false,eG*.3));}
   }
   // スターマイン：8色連続爆発
   _starmine(x,y,q,sN,lN,eG,bs,bl){
@@ -358,7 +375,7 @@ class Firework{
   _kaminari(x,y,q,sN,lN,eG,bs,bl){
     const n=~~(75*PM);
     for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2;
-      this.stars.push(this._mk(x,y,a,bs*(0.8+Math.random()*0.9),['#ffffff','#eeeeff','#88aaff','#4466dd','#ffffff'],bl*0.82,5,0.32,0.5,0.3,true,eG));}
+      this.stars.push(this._mk(x,y,a,bs*(0.8+Math.random()*0.9),['#ffffff','#eeeeff','#88aaff','#4466dd','#ffffff'],bl*0.82,20,0.32,0.5,0.3,true,eG));}
     // 閃光リング
     const fl1=[],n2=~~(55*PM);
     for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2)*Math.PI*2;
@@ -402,6 +419,14 @@ class Firework{
   }
   draw(){
     this.stars.forEach(s=>s.draw());
+    // Bloom: additive-blend hot-spots where stars cluster (lighter = HDR glow)
+    if(!gHeavy&&this.stars.length>0){
+      X.save();X.globalCompositeOperation='lighter';
+      this.stars.forEach(s=>{const a=s.life/s.maxLife;if(a<0.2)return;
+        X.globalAlpha=a*0.09;X.fillStyle=s.getCol();
+        X.beginPath();X.arc(s.x,s.y,9,0,Math.PI*2);X.fill();});
+      X.restore();X.globalAlpha=1;
+    }
     // Center glow: instant flash then slow-fade lingering core
     if(this.age<=48){
       let r,rad;
@@ -441,6 +466,7 @@ class FinaleRocket{
     this.vy+=this.g;this.y+=this.vy;this.frame++;
     this.trail.push({x:this.x,y:this.y});
     if(this.trail.length>18)this.trail.shift();
+    if(this.offset<-4&&!gHeavy&&Math.random()<0.18)smokes.push(new SmokePuff(this.x,this.y,H*0.014));
     // 乗り遅れ安全網：ピーク+55フレーム過ぎたら自動爆発
     if(!this.exploded&&this.started&&this.offset>55)explodeFinaleRocket(this);
   }
@@ -498,6 +524,7 @@ class Rocket{
     this.vy+=this.g;this.y+=this.vy;this.frame++;
     this.trail.push({x:this.x,y:this.y});
     if(this.trail.length>22)this.trail.shift();
+    if(this.offset<-4&&!gHeavy&&Math.random()<0.22)smokes.push(new SmokePuff(this.x,this.y,H*0.016));
   }
   draw(){
     if(!this.launched)return;
@@ -551,6 +578,7 @@ let finaleCloseFired=false;
 let colorFlash=0,colorFlashCol='#ffeeaa';
 let gHeavy=false,ptCount=0;
 let combo=0,comboPops=[];
+let smokes=[],crowdReacts=[];
 let hiscore=+(localStorage.getItem('hanabi_hiscore')||0);
 let newRecord=false;
 
@@ -577,7 +605,7 @@ function onInput(){
     return;
   }
   if(state==='SCORING'&&scPh>=maxScPhase()){advanceFromScore();return;}
-  if(state==='RESULTS'){state='TITLE';fws=[];lightBursts=[];titleT=0;return;}
+  if(state==='RESULTS'){state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];titleT=0;return;}
 }
 document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='Enter'){e.preventDefault();onInput();}});
 document.addEventListener('touchstart',e=>{e.preventDefault();onInput();},{passive:false});
@@ -599,6 +627,11 @@ function doLaunch(){
   rockets=shotTypes.map((typeId,i)=>new Rocket(xSp(i),i*15,typeId,cfg.rings));
   state='WAITING';
 }
+function addReact(sc,rx){
+  const t=sc>=80?['おお〜！','やばい！','完璧！']:sc>=60?['きれい！','いいね！']:['ふーん','まあまあ'];
+  crowdReacts.push({x:rx!=null?rx:W*0.1+Math.random()*W*0.8,y:H*0.87,vy:-0.65,t:100,
+    txt:t[~~(Math.random()*t.length)],col:sc>=80?'#ffee44':sc>=60?'#88ffaa':'#aaaaaa'});
+}
 function onRocketExplode(r){
   if(r.exploded)return;
   r.exploded=true;
@@ -615,6 +648,8 @@ function onRocketExplode(r){
   shakeAmt=Math.min(10,2+sc.total*0.05);
   skyGlow=Math.min(1,skyGlow+0.20);
   lightBursts.push(new LightBurst(r.x,r.y,r.typeId));
+  for(let k=0;k<~~(13*PM);k++)smokes.push(new SmokePuff(r.x,r.y,H*0.07));
+  addReact(sc.total,r.x);
   colorFlash=20;colorFlashCol=TYPE_COLORS[r.typeId]||'#ffeeaa';
   boomCd=Math.max(boomCd,8);
   if(rockets.every(r2=>r2.exploded)){state='EXPLODING';scT=140;}
@@ -626,6 +661,7 @@ function explodeFinaleRocket(r){
   const capRings=ptCount>(IS_MOBILE?400:1400)?1:r.rings;
   fws.push(new Firework(r.x,r.y,off,r.typeId,capRings));
   lightBursts.push(new LightBurst(r.x,r.y,r.typeId));
+  for(let k=0;k<~~(10*PM);k++)smokes.push(new SmokePuff(r.x,r.y,H*0.06));
   colorFlash=14;colorFlashCol=TYPE_COLORS[r.typeId]||'#ffeeaa';
   if(boomCd<=0){playBoom(2.0);boomCd=7;}
   if(Math.random()<0.4)playCrackle();
@@ -1027,6 +1063,14 @@ function loop(){
   gHeavy=ptCount>(IS_MOBILE?500:1800);
   fws.forEach(fw=>fw.draw());
   fws=fws.filter(fw=>!fw.done);
+
+  // Smokes
+  smokes.forEach(s=>{s.update();s.draw();});smokes=smokes.filter(s=>!s.dead);
+  // Crowd reactions
+  crowdReacts.forEach(p=>{p.y+=p.vy;p.t--;
+    X.globalAlpha=p.t<20?p.t/20:Math.min(1,(100-p.t)/10);
+    txt(p.txt,p.x,p.y,fs(0.04,24),p.col,'center',7);});
+  crowdReacts=crowdReacts.filter(p=>p.t>0);X.globalAlpha=1;
 
   // Combo popups
   comboPops.forEach(p=>{p.y-=0.55;p.t--;
