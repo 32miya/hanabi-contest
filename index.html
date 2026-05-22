@@ -935,37 +935,54 @@ function uiFinale(){
 }
 
 function uiResults(){
-  const pw=Math.min(500,W*0.80),ph=H*0.46;
-  panel(W/2-pw/2,H*0.25,pw,ph,'最　終　結　果');
   const stageTot=stageScores.reduce((a,s)=>a+s.avg,0);
   if(!newRecord&&stageTot>hiscore){hiscore=stageTot;localStorage.setItem('hanabi_hiscore',hiscore);newRecord=true;}
+  let grade,gc,gsub;
+  if(stageTot>=300){grade='花火の神';gc='#fff';    gsub='神業！　満点達成！';}
+  else if(stageTot>=250){grade='花火名人';gc='#ffee22';gsub='250点以上　名人の域';}
+  else if(stageTot>=200){grade='花 火 師'; gc='#ffcc44';gsub='200点以上　一流の腕前';}
+  else if(stageTot>=150){grade='上　級';  gc='#88ccff';gsub='150点以上　かなりの実力';}
+  else if(stageTot>=100){grade='中　級';  gc='#77ee99';gsub='100点以上　まずまずの腕前';}
+  else if(stageTot>=50) {grade='初心者';  gc='#aacc88';gsub='50点以上　少しずつ上達';}
+  else                  {grade='修行中';  gc='#aaa';   gsub='タイミングを覚えよう';}
+  const hasFinale=finaleShots.length>0;
+  const detailRows=stageScores.length+(hasFinale?1:0);
+  const dstep=IS_MOBILE?26:30;
+  const pw=Math.min(W*0.88,420),ph=IS_MOBILE?198+detailRows*dstep:H*0.46;
+  const px=W/2-pw/2,py=IS_MOBILE?H*0.04:H*0.25;
+  // Panel (custom draw for results — slightly open to show fireworks behind)
+  X.save();X.shadowColor='rgba(255,160,0,0.6)';X.shadowBlur=26;
+  X.fillStyle='rgba(2,3,18,0.84)';X.strokeStyle='rgba(255,205,60,0.85)';X.lineWidth=1.8;
+  X.beginPath();X.roundRect(px,py,pw,ph,10);X.fill();X.stroke();X.restore();
+  X.fillStyle='rgba(255,185,0,0.10)';X.beginPath();X.roundRect(px+2,py+2,pw-4,34,8);X.fill();
+  txt('最 終 結 果',px+pw/2,py+18,IS_MOBILE?15:13,'#ffcc44','center',6);
+  // Record / label
   if(newRecord){
     const rp=0.65+0.35*Math.abs(Math.sin(fr*0.14));
-    X.globalAlpha=rp;txt('★ 新記録達成！',W/2,H*0.335,fs(0.028,20),'#ffdd44','center',10);X.globalAlpha=1;
+    X.globalAlpha=rp;txt('★ 新記録達成！',W/2,py+47,fs(0.03,18),'#ffdd44','center',10);X.globalAlpha=1;
   }else{
-    txt('競技終了',W/2,H*0.335,fs(0.025,18),'rgba(255,210,130,0.8)','center',4);
+    txt('競技終了',W/2,py+47,fs(0.028,15),'rgba(255,210,130,0.8)','center',4);
   }
-  let grade,gc,gsub;
-  if(stageTot>=300){grade='花　火　の　神';gc='#fff';    gsub='神業！満点達成';}
-  else if(stageTot>=250){grade='花　火　名　人';gc='#ffee22';gsub='250点以上：名人の域';}
-  else if(stageTot>=200){grade='花　　火　　師';gc='#ffcc44';gsub='200点以上：一流の腕前';}
-  else if(stageTot>=150){grade='上　　　　　級';gc='#88ccff';gsub='150点以上：かなりの実力';}
-  else if(stageTot>=100){grade='中　　　　　級';gc='#77ee99';gsub='100点以上：まずまずの腕前';}
-  else if(stageTot>=50) {grade='初　　心　　者';gc='#aacc88';gsub='50点以上：少しずつ上達';}
-  else                  {grade='修　　行　　中';gc='#999';   gsub='まずはタイミングを覚えよう';}
-  txt(grade,W/2,H*0.405,fs(0.057,44),gc,'center',14);
-  txt(gsub,W/2,H*0.465,fs(0.022,15),gc,'center',4);
-  txt(`競技合計　${stageTot} / 300 点`,W/2,H*0.515,fs(0.026,19),'rgba(255,232,150,0.88)','center',4);
+  // Grade — large and prominent
+  txt(grade,W/2,py+92,fs(0.105,52),gc,'center',18);
+  txt(gsub,W/2,py+134,fs(0.04,18),gc,'center',4);
+  // Divider
+  X.globalAlpha=0.40;X.fillStyle='rgba(255,205,50,1)';
+  X.fillRect(px+22,py+152,pw-44,1);X.globalAlpha=1;
+  // Total score — prominent
+  txt(`${stageTot} / 300 点`,W/2,py+177,fs(0.075,34),'rgba(255,245,160,0.96)','center',10);
+  // Stage breakdown — compact
   stageScores.forEach((ss,i)=>{
-    const detail=ss.shots.length>1?`（${ss.shots.map(s=>s.total).join('・')}）`:'';
-    txt(`${STAGE_CFG[i].label}　平均${ss.avg}点${detail}`,W/2,H*0.575+i*H*0.048,fs(0.02,14),'rgba(200,180,128,0.7)');
+    txt(`${STAGE_CFG[i].label}　${ss.avg}点`,W/2,py+212+i*dstep,fs(0.022,13),'rgba(205,185,130,0.78)');
   });
-  if(finaleShots.length>0){
+  if(hasFinale){
     const favg=Math.round(finaleShots.reduce((a,s)=>a+s.total,0)/finaleShots.length);
-    txt(`大フィナーレ　平均${favg}点（${finaleShots.length}発）`,W/2,H*0.575+3*H*0.048,fs(0.02,14),'rgba(180,220,255,0.75)');
+    txt(`大フィナーレ　${favg}点`,W/2,py+212+stageScores.length*dstep,fs(0.022,13),'rgba(170,215,255,0.78)');
   }
-  X.globalAlpha=0.45+0.55*Math.abs(Math.sin(fr*0.065));
-  txt(IS_MOBILE?'タップでタイトルへ':'タップ / スペースでタイトルへ',W/2,H*0.855,fs(0.022,16),'rgba(255,220,150,0.8)');
+  // Tap prompt just below card
+  X.globalAlpha=0.5+0.5*Math.abs(Math.sin(fr*0.065));
+  txt(IS_MOBILE?'タップでタイトルへ':'タップ / スペースでタイトルへ',
+      W/2,py+ph+30,fs(0.025,15),'rgba(255,225,155,0.9)');
   X.globalAlpha=1;
 }
 
