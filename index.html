@@ -892,15 +892,17 @@ function uiResults(){
   panel(W/2-pw/2,H*0.25,pw,ph,'最　終　結　果');
   txt('競技終了',W/2,H*0.335,Math.min(W*0.025,18),'rgba(255,210,130,0.8)','center',4);
   const stageTot=stageScores.reduce((a,s)=>a+s.avg,0);
-  const avg=stageTot/3;
-  let grade,gc;
-  if(avg>=92){grade='天覧花火師';gc='#fff';}
-  else if(avg>=82){grade='花　火　名　人';gc='#ffee22';}
-  else if(avg>=70){grade='上　　　級';gc='#88ccff';}
-  else if(avg>=55){grade='中　　　級';gc='#77ee99';}
-  else{grade='修　行　中';gc='#aaa';}
-  txt(grade,W/2,H*0.42,Math.min(W*0.057,44),gc,'center',14);
-  txt(`競技合計　${stageTot} / 300 点`,W/2,H*0.51,Math.min(W*0.026,19),'rgba(255,232,150,0.88)','center',4);
+  let grade,gc,gsub;
+  if(stageTot>=300){grade='花　火　の　神';gc='#fff';    gsub='神業！満点達成';}
+  else if(stageTot>=250){grade='花　火　名　人';gc='#ffee22';gsub='250点以上：名人の域';}
+  else if(stageTot>=200){grade='花　　火　　師';gc='#ffcc44';gsub='200点以上：一流の腕前';}
+  else if(stageTot>=150){grade='上　　　　　級';gc='#88ccff';gsub='150点以上：かなりの実力';}
+  else if(stageTot>=100){grade='中　　　　　級';gc='#77ee99';gsub='100点以上：まずまずの腕前';}
+  else if(stageTot>=50) {grade='初　　心　　者';gc='#aacc88';gsub='50点以上：少しずつ上達';}
+  else                  {grade='修　　行　　中';gc='#999';   gsub='まずはタイミングを覚えよう';}
+  txt(grade,W/2,H*0.405,Math.min(W*0.057,44),gc,'center',14);
+  txt(gsub,W/2,H*0.465,Math.min(W*0.022,15),gc,'center',4);
+  txt(`競技合計　${stageTot} / 300 点`,W/2,H*0.515,Math.min(W*0.026,19),'rgba(255,232,150,0.88)','center',4);
   stageScores.forEach((ss,i)=>{
     const detail=ss.shots.length>1?`（${ss.shots.map(s=>s.total).join('・')}）`:'';
     txt(`${STAGE_CFG[i].label}　平均${ss.avg}点${detail}`,W/2,H*0.575+i*H*0.048,Math.min(W*0.02,14),'rgba(200,180,128,0.7)');
