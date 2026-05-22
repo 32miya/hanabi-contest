@@ -1057,7 +1057,6 @@ function loop(){
         shakeAmt=Math.max(shakeAmt,22);skyGlow=1;crowdCheer=100;
         if(boomCd<=0){playBoom(5.5);boomCd=14;}
         playCrackle();
-        comboPops.push({x:W/2,y:H*0.3,t:85,txt:'大 締 め！',col:'#ffdd22',sz:fs(0.08,52)});
       }
     });
     finaleRockets.forEach(r=>r.draw());
