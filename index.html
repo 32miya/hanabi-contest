@@ -547,6 +547,9 @@ let crowdCheer=0,skyGlow=0,titleT=0;
 let finaleTimer=0,finaleWave=0,finaleRockets=[],finaleShots=[],finaleIntroT=0;
 let colorFlash=0,colorFlashCol='#ffeeaa';
 let gHeavy=false,ptCount=0;
+let combo=0,comboPops=[];
+let hiscore=+(localStorage.getItem('hanabi_hiscore')||0);
+let newRecord=false;
 
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=~~(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
 
@@ -565,8 +568,18 @@ function onInput(){
   if(state==='FINALE'){
     const cands=finaleRockets.filter(r=>r.started&&!r.exploded);
     if(cands.length>0){
-      const best=cands.reduce((a,b)=>Math.abs(a.offset)<Math.abs(b.offset)?a:b);
-      explodeFinaleRocket(best);
+      const nearOnes=cands.filter(r=>r.nearPeak);
+      if(nearOnes.length>=2){
+        nearOnes.forEach(r=>explodeFinaleRocket(r));
+        if(nearOnes.length>=3){
+          comboPops.push({x:W/2,y:H*0.27,t:115,
+            txt:`${nearOnes.length}発 一斉爆発！`,col:'#ffaa22',sz:Math.min(W*0.055,38)});
+          shakeAmt=Math.max(shakeAmt,12);colorFlash=28;colorFlashCol='#ffeeaa';
+        }
+      }else{
+        const best=cands.reduce((a,b)=>Math.abs(a.offset)<Math.abs(b.offset)?a:b);
+        explodeFinaleRocket(best);
+      }
     }
     return;
   }
@@ -581,7 +594,8 @@ document.addEventListener('click',onInput);
 // ── Game logic ─────────────────────────────────────────────────
 function initStage(idx){
   stageIdx=idx;const cfg=STAGE_CFG[idx];
-  shotScores=[];rockets=[];
+  shotScores=[];rockets=[];combo=0;
+  if(idx===0)newRecord=false;
   const pool=cfg.pool?[...cfg.pool]:FW_TYPES.map(t=>t.id);
   shuffle(pool);shotTypes=pool.slice(0,cfg.shots);
   launchT=160;state='LAUNCHING';
@@ -599,6 +613,10 @@ function onRocketExplode(r){
   fws.push(new Firework(r.x,r.y,off,r.typeId,r.rings));
   playBoom();playCrackle();
   const sc=calcScore(off);
+  if(Math.abs(off)<=5)combo++;else combo=0;
+  if(combo>=2)comboPops.push({x:r.x,y:r.y-28,t:85,
+    txt:combo>=5?`${combo}連続 大コンボ！`:combo>=3?`${combo}連続コンボ！`:`${combo}連続！`,
+    col:combo>=5?'#ff8800':combo>=3?'#ffdd22':'#ffee88',sz:Math.min(W*0.038,26)});
   shotScores.push(sc);
   crowdCheer=Math.max(crowdCheer,(sc.total-40)/60*100);
   shakeAmt=Math.min(10,2+sc.total*0.05);
@@ -620,6 +638,10 @@ function explodeFinaleRocket(r){
   if(Math.random()<0.4)playCrackle();
   shakeAmt=Math.max(shakeAmt,6);skyGlow=Math.min(1,skyGlow+0.22);crowdCheer=100;
   const sc=calcScore(off);
+  if(Math.abs(off)<=5)combo++;else combo=0;
+  if(combo>=2)comboPops.push({x:r.x,y:r.y-28,t:85,
+    txt:combo>=5?`${combo}連続 大コンボ！`:combo>=3?`${combo}連続コンボ！`:`${combo}連続！`,
+    col:combo>=5?'#ff8800':combo>=3?'#ffdd22':'#ffee88',sz:Math.min(W*0.038,26)});
   finaleShots.push(sc);
 }
 function onExplodeEnd(){
@@ -729,6 +751,7 @@ function uiTitle(){
   X.globalAlpha=1;
   txt('第1競技 1発 → 第2競技 2発 → 第3競技 3発 → 大フィナーレ',W/2,H*0.69,Math.min(W*0.016,12),'rgba(185,165,110,0.5)');
   txt('花火の種類：菊・牡丹・柳・錦冠・千輪・変色',W/2,H*0.74,Math.min(W*0.015,11),'rgba(155,135,85,0.4)');
+  if(hiscore>0)txt(`自己記録　${hiscore} / 300 点`,W/2,H*0.80,Math.min(W*0.018,13),'rgba(255,210,80,0.55)');
 }
 
 function uiLaunching(){
@@ -748,16 +771,46 @@ function uiLaunching(){
   }
 }
 
+function drawTimingMeter(off){
+  const mw=Math.min(240,W*0.34),mh=10,range=28;
+  const mx=W/2-mw/2,my=H*0.785;
+  // Background
+  X.globalAlpha=0.65;X.fillStyle='#00060f';
+  X.beginPath();X.roundRect(mx-3,my-3,mw+6,mh+6,5);X.fill();
+  // Red full bar
+  X.globalAlpha=0.72;X.fillStyle='rgba(175,35,15,0.55)';X.fillRect(mx,my,mw,mh);
+  // Yellow zone
+  const y1=((range-8)/(range*2))*mw,y2=((range+8)/(range*2))*mw;
+  X.fillStyle='rgba(205,155,10,0.65)';X.fillRect(mx+y1,my,y2-y1,mh);
+  // Green zone
+  const g1=((range-3)/(range*2))*mw,g2=((range+3)/(range*2))*mw;
+  X.fillStyle='rgba(35,190,70,0.80)';X.fillRect(mx+g1,my,g2-g1,mh);
+  // Center mark
+  X.globalAlpha=0.75;X.strokeStyle='#fff';X.lineWidth=1.2;
+  X.beginPath();X.moveTo(W/2,my-2);X.lineTo(W/2,my+mh+2);X.stroke();
+  txt('★頂点',W/2,my-11,Math.min(W*0.013,10),'rgba(255,255,150,0.5)','center');
+  // Indicator
+  const co=Math.max(-range,Math.min(range,off));
+  const ix=mx+((co+range)/(range*2))*mw;
+  const ic=Math.abs(off)<=3?'#44ff88':Math.abs(off)<=7?'#ffcc44':'#ff5544';
+  X.globalAlpha=1;
+  X.fillStyle=ic;X.beginPath();X.arc(ix,my+mh/2,6.5,0,Math.PI*2);X.fill();
+  X.fillStyle='#fff';X.beginPath();X.arc(ix,my+mh/2,2,0,Math.PI*2);X.fill();
+  X.globalAlpha=1;
+}
+
 function uiWaiting(){
   const cfg=STAGE_CFG[stageIdx];
   const remaining=rockets.filter(r=>!r.exploded);
   const launched=rockets.filter(r=>r.launched&&!r.exploded);
   if(launched.length===0)return;
+  const best=launched.reduce((a,b)=>Math.abs(a.offset)<Math.abs(b.offset)?a:b);
   const anyUrgent=launched.some(r=>Math.abs(r.offset)<=3);
   const anyNear=launched.some(r=>r.nearPeak);
   const p=anyUrgent?1:(0.65+0.35*Math.abs(Math.sin(fr*0.13)));
   const col=anyUrgent?'#ffff33':anyNear?'#ffee66':'#ffd566';
   const sz=anyUrgent?Math.min(W*0.034,26):Math.min(W*0.027,20);
+  drawTimingMeter(best.offset);
   X.globalAlpha=p;
   X.fillStyle='rgba(0,0,0,0.48)';X.fillRect(W/2-170,H*0.84-18,340,36);
   txt('▶  今 だ！　スペース / タップ  ◀',W/2,H*0.84,sz,col,'center',anyUrgent?12:0);
@@ -890,8 +943,14 @@ function uiFinale(){
 function uiResults(){
   const pw=Math.min(500,W*0.80),ph=H*0.46;
   panel(W/2-pw/2,H*0.25,pw,ph,'最　終　結　果');
-  txt('競技終了',W/2,H*0.335,Math.min(W*0.025,18),'rgba(255,210,130,0.8)','center',4);
   const stageTot=stageScores.reduce((a,s)=>a+s.avg,0);
+  if(!newRecord&&stageTot>hiscore){hiscore=stageTot;localStorage.setItem('hanabi_hiscore',hiscore);newRecord=true;}
+  if(newRecord){
+    const rp=0.65+0.35*Math.abs(Math.sin(fr*0.14));
+    X.globalAlpha=rp;txt('★ 新記録達成！',W/2,H*0.335,Math.min(W*0.028,20),'#ffdd44','center',10);X.globalAlpha=1;
+  }else{
+    txt('競技終了',W/2,H*0.335,Math.min(W*0.025,18),'rgba(255,210,130,0.8)','center',4);
+  }
   let grade,gc,gsub;
   if(stageTot>=300){grade='花　火　の　神';gc='#fff';    gsub='神業！満点達成';}
   else if(stageTot>=250){grade='花　火　名　人';gc='#ffee22';gsub='250点以上：名人の域';}
@@ -951,6 +1010,12 @@ function loop(){
   gHeavy=ptCount>(IS_MOBILE?500:1800);
   fws.forEach(fw=>fw.draw());
   fws=fws.filter(fw=>!fw.done);
+
+  // Combo popups
+  comboPops.forEach(p=>{p.y-=0.55;p.t--;
+    X.globalAlpha=p.t<18?p.t/18:Math.min(1,(85-p.t)/8+0.1);
+    txt(p.txt,p.x,p.y,p.sz||Math.min(W*0.035,24),p.col,'center',8);});
+  comboPops=comboPops.filter(p=>p.t>0);X.globalAlpha=1;
 
   // Competition rockets
   rockets.forEach(r=>{
