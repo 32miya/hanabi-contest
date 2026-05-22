@@ -71,6 +71,18 @@ function playCrackle(){
     src.buffer=buf;src.start();
   },Math.random()*1600+80);
 }
+function playCheer(){
+  const a=aCtx(),len=Math.floor(a.sampleRate*0.7);
+  const buf=a.createBuffer(1,len,a.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,0.6)*0.35;
+  const src=a.createBufferSource(),bpf=a.createBiquadFilter(),g=a.createGain();
+  bpf.type='bandpass';bpf.frequency.value=1100;bpf.Q.value=0.45;
+  src.connect(bpf);bpf.connect(g);g.connect(a.destination);
+  g.gain.setValueAtTime(1,a.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.7);
+  src.buffer=buf;src.start();src.stop(a.currentTime+0.7);
+}
 
 // ── Color ──────────────────────────────────────────────────────
 function lerpCol(c1,c2,t){
@@ -210,6 +222,27 @@ class SmokePuff{
     const t=this.life/this.maxLife;
     X.globalAlpha=t*0.12;X.fillStyle='#b8b4ae';
     X.beginPath();X.arc(this.x,this.y,this.r,0,Math.PI*2);X.fill();X.globalAlpha=1;
+  }
+}
+
+// ── CameraFlash ────────────────────────────────────────────────
+class CameraFlash{
+  constructor(){
+    this.x=W*(0.03+Math.random()*0.94);this.y=H*(0.83+Math.random()*0.05);
+    this.life=18+~~(Math.random()*12);this.maxLife=this.life;this.dead=false;
+  }
+  update(){if(--this.life<=0)this.dead=true;}
+  draw(){
+    const t=this.life/this.maxLife;
+    X.globalAlpha=t*0.9;X.fillStyle='#ffffff';
+    X.beginPath();X.arc(this.x,this.y,t*3.5,0,Math.PI*2);X.fill();
+    X.globalAlpha=t*0.55;X.strokeStyle='#fffff8';X.lineWidth=0.7;
+    for(let i=0;i<4;i++){
+      const ang=(i/4)*Math.PI*2;
+      X.beginPath();X.moveTo(this.x+Math.cos(ang)*t*2,this.y+Math.sin(ang)*t*2);
+      X.lineTo(this.x+Math.cos(ang)*t*10,this.y+Math.sin(ang)*t*10);X.stroke();
+    }
+    X.globalAlpha=1;
   }
 }
 
@@ -591,6 +624,7 @@ let colorFlash=0,colorFlashCol='#ffeeaa';
 let gHeavy=false,ptCount=0;
 let combo=0,comboPops=[];
 let smokes=[],crowdReacts=[];
+let replayLog=[],recordingFrame=0,replayTimer=0,replayCursor=0,cameraFlashes=[];
 let hiscore=+(localStorage.getItem('hanabi_hiscore')||0);
 let newRecord=false;
 
@@ -646,7 +680,8 @@ function onInput(){
     return;
   }
   if(state==='SCORING'&&scPh>=maxScPhase()){advanceFromScore();return;}
-  if(state==='RESULTS'){state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];titleT=0;return;}
+  if(state==='REPLAY'){state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];cameraFlashes=[];titleT=0;return;}
+  if(state==='RESULTS'){if(replayLog.length>0){startReplay();return;}state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];titleT=0;return;}
 }
 document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='Enter'){e.preventDefault();onInput();}});
 document.addEventListener('touchstart',e=>{e.preventDefault();onInput();},{passive:false});
@@ -657,7 +692,7 @@ document.addEventListener('click',onInput);
 function initStage(idx){
   stageIdx=idx;const cfg=STAGE_CFG[idx];
   shotScores=[];rockets=[];combo=0;
-  if(idx===0){newRecord=false;frenzyTotalFired=0;frenzyRockets=[];frenzyPhaseEnd=false;frenzyTapCharge=0;}
+  if(idx===0){newRecord=false;frenzyTotalFired=0;frenzyRockets=[];frenzyPhaseEnd=false;frenzyTapCharge=0;replayLog=[];recordingFrame=0;}
   const pool=cfg.pool?[...cfg.pool]:FW_TYPES.map(t=>t.id);
   shuffle(pool);shotTypes=pool.slice(0,cfg.shots);
   launchT=160;state='LAUNCHING';
@@ -713,6 +748,7 @@ function explodeFinaleRocket(r){
     txt:combo>=5?`${combo}連続 大コンボ！`:combo>=3?`${combo}連続コンボ！`:`${combo}連続！`,
     col:combo>=5?'#ff8800':combo>=3?'#ffdd22':'#ffee88',sz:fs(0.038,26)});
   finaleShots.push(sc);
+  replayLog.push({t:recordingFrame,x:r.x,y:r.y,typeId:r.typeId,rings:Math.min(r.rings,2),sc:sc.total});
 }
 function explodeFrenzyRocket(r){
   if(r.exploded||r.dead)return;
@@ -724,6 +760,7 @@ function explodeFrenzyRocket(r){
   for(let k=0;k<~~(5*PM);k++)smokes.push(new SmokePuff(r.x,r.y,H*0.05));
   if(boomCd<=0){playBoom(1.5);boomCd=4;}
   shakeAmt=Math.max(shakeAmt,4);skyGlow=Math.min(1,skyGlow+0.12);
+  replayLog.push({t:recordingFrame,x:r.x,y:r.y,typeId:r.typeId,rings:1,sc:0});
 }
 function onExplodeEnd(){
   const avg=Math.round(shotScores.reduce((a,s)=>a+s.total,0)/shotScores.length);
@@ -735,10 +772,15 @@ function advanceFromScore(){
   if(stageIdx<STAGE_CFG.length-1)initStage(stageIdx+1);
   else{state='FINALE_INTRO';finaleIntroT=150;}
 }
-function startFinale(){state='FINALE';finaleTimer=0;finaleWave=0;finaleRockets=[];finaleShots=[];boomCd=0;finaleCloseFired=false;}
+function startFinale(){state='FINALE';finaleTimer=0;finaleWave=0;finaleRockets=[];finaleShots=[];boomCd=0;finaleCloseFired=false;replayLog=[];recordingFrame=0;}
 function startFrenzy(){
   state='FRENZY';frenzyTimer=0;frenzyTotalFired=0;frenzyCombo=0;
   frenzyLastTap=-999;frenzyRockets=[];frenzyPhaseEnd=false;frenzyTapCharge=0;crowdCheer=100;
+}
+function startReplay(){
+  state='REPLAY';replayTimer=0;replayCursor=0;cameraFlashes=[];
+  fws=[];lightBursts=[];smokes=[];crowdReacts=[];
+  skyGlow=0;colorFlash=0;shakeAmt=0;boomCd=0;crowdCheer=80;
 }
 
 // ── Background ─────────────────────────────────────────────────
@@ -1109,6 +1151,59 @@ function uiFrenzy(){
   }
 }
 
+function uiReplay(){
+  replayTimer++;boomCd=Math.max(0,boomCd-1);
+  // Spawn recorded events
+  while(replayCursor<replayLog.length&&replayLog[replayCursor].t<=replayTimer){
+    const ev=replayLog[replayCursor++];
+    if(ptCount<(IS_MOBILE?800:2500))fws.push(new Firework(ev.x,ev.y,0,ev.typeId,ev.rings));
+    lightBursts.push(new LightBurst(ev.x,ev.y,ev.typeId));
+    if(smokes.length<280)for(let k=0;k<~~(4*PM);k++)smokes.push(new SmokePuff(ev.x,ev.y,H*0.06));
+    colorFlash=14;colorFlashCol=TYPE_COLORS[ev.typeId]||'#ffeeaa';
+    if(boomCd<=0){playBoom(ev.grand?5.0:1.8);boomCd=ev.grand?14:5;}
+    if((ev.sc>0||ev.grand)&&Math.random()<0.45)playCrackle();
+    shakeAmt=Math.max(shakeAmt,ev.grand?20:5);
+    skyGlow=Math.min(1,skyGlow+(ev.grand?0.4:0.14));
+    crowdCheer=100;
+    if(ev.sc>=60||ev.grand){
+      const nc=ev.grand?8:~~(2+Math.random()*4);
+      for(let i=0;i<nc;i++)cameraFlashes.push(new CameraFlash());
+      if(ev.sc>=80||ev.grand)playCheer();
+    }
+  }
+  // Camera flashes from audience
+  cameraFlashes.forEach(f=>{f.update();f.draw();});
+  cameraFlashes=cameraFlashes.filter(f=>!f.dead);
+  // Cinematic letterbox bars
+  const barH=H*0.09;
+  X.fillStyle='#000';
+  X.fillRect(0,0,W,barH);X.fillRect(0,H-barH,W,barH);
+  // REPLAY badge (top-left)
+  X.fillStyle='rgba(188,0,0,0.88)';
+  X.beginPath();X.roundRect(10,barH+7,66,22,4);X.fill();
+  txt('● REPLAY',43,barH+18,11,'#fff','center');
+  // Progress bar (top-center)
+  const lastT=replayLog.length>0?replayLog[replayLog.length-1].t:300;
+  const endT=lastT+180;
+  const pbw=Math.min(150,W*0.28),pbx=W/2-pbw/2,pby=barH+10;
+  X.globalAlpha=0.55;X.fillStyle='#222';X.fillRect(pbx,pby,pbw,5);
+  X.globalAlpha=1;X.fillStyle='#ff6622';X.fillRect(pbx,pby,pbw*Math.min(1,replayTimer/endT),5);
+  // Total fired count (top-right)
+  if(frenzyTotalFired>0)
+    txt(`${frenzyTotalFired}発`,W-12,barH+18,fs(0.022,15),'rgba(255,160,60,0.9)','right',4);
+  // Bottom letterbox caption + skip hint
+  const cp=0.65+0.35*Math.abs(Math.sin(fr*0.045));
+  X.globalAlpha=cp;
+  txt('あなたがプロデュースした花火大会',W/2,H-barH*0.58,fs(0.022,15),'rgba(255,215,130,0.92)','center',4);
+  X.globalAlpha=0.38+0.28*Math.abs(Math.sin(fr*0.09));
+  txt(IS_MOBILE?'タップでスキップ':'クリック / スペースでスキップ',W/2,H-barH*0.18,fs(0.015,11),'rgba(200,175,110,0.7)');
+  X.globalAlpha=1;
+  // Completion check
+  if(replayTimer>endT+360||(replayCursor>=replayLog.length&&fws.length===0&&replayTimer>180)){
+    state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];cameraFlashes=[];titleT=0;
+  }
+}
+
 function uiResults(){
   const stageTot=stageScores.reduce((a,s)=>a+s.avg,0);
   if(!newRecord&&stageTot>hiscore){hiscore=stageTot;localStorage.setItem('hanabi_hiscore',hiscore);newRecord=true;}
@@ -1165,8 +1260,10 @@ function uiResults(){
   }
   // Tap prompt just below card
   X.globalAlpha=0.5+0.5*Math.abs(Math.sin(fr*0.065));
-  txt(IS_MOBILE?'タップでタイトルへ':'タップ / スペースでタイトルへ',
-      W/2,IS_MOBILE?py+232+detailRows*dstep:py+ph+36,fs(0.05,20),'rgba(255,225,155,0.95)');
+  const _rpHint=replayLog.length>0?
+    (IS_MOBILE?'▶ タップでリプレイ':'▶ タップ / スペースでリプレイ'):
+    (IS_MOBILE?'タップでタイトルへ':'タップ / スペースでタイトルへ');
+  txt(_rpHint,W/2,IS_MOBILE?py+232+detailRows*dstep:py+ph+36,fs(0.05,20),'rgba(255,225,155,0.95)');
   X.globalAlpha=1;
 }
 
@@ -1187,6 +1284,7 @@ function spawnTitleFw(){
 // ── Main loop ──────────────────────────────────────────────────
 function loop(){
   fr++;
+  if(state==='FINALE'||state==='FRENZY')recordingFrame++;
   drawSky();drawBGStars();drawMoon();drawCity();drawCrowd();
 
   const doShake=shakeAmt>0.3;
@@ -1238,6 +1336,7 @@ function loop(){
       if(r.grand&&r.started&&!r.exploded&&r.offset>=0){
         r.exploded=true;r.dead=true;
         fws.push(new Firework(r.x,r.y,0,'kiku',3));
+        replayLog.push({t:recordingFrame,x:r.x,y:r.y,typeId:'kiku',rings:3,sc:100,grand:true});
         lightBursts.push(new LightBurst(r.x,r.y,'kiku'));
         colorFlash=50;colorFlashCol='#ffcc44';
         shakeAmt=Math.max(shakeAmt,22);skyGlow=1;crowdCheer=100;
@@ -1274,6 +1373,7 @@ function loop(){
     case'FRENZY_INTRO': uiFrenzyIntro(); break;
     case'FRENZY':       uiFrenzy();      break;
     case'RESULTS':      uiResults();     break;
+    case'REPLAY':       uiReplay();      break;
   }
 
   requestAnimationFrame(loop);
