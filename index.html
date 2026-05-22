@@ -76,7 +76,8 @@ function lerpCol(c1,c2,t){
   const[r1,g1,b1]=p(c1),[r2,g2,b2]=p(c2);
   return`rgb(${~~(r1+(r2-r1)*t)},${~~(g1+(g2-g1)*t)},${~~(b1+(b2-b1)*t)})`;
 }
-const TYPE_COLORS={kiku:'#ffcc44',botan:'#ff4466',yanagi:'#ddddaa',kamuro:'#ffaa00',senrin:'#aa66ff',henko:'#ff4400'};
+const TYPE_COLORS={kiku:'#ffcc44',botan:'#ff4466',yanagi:'#ddddaa',kamuro:'#ffaa00',senrin:'#aa66ff',henko:'#ff4400',
+  oyanagi:'#eedd88',starmine:'#ff44ff',yashi:'#ffffbb',kaminari:'#88aaff',kowari:'#ff8833'};
 
 
 // ── Background assets ──────────────────────────────────────────
@@ -176,12 +177,17 @@ class LightBurst{
 
 // ── Firework types ──────────────────────────────────────────────
 const FW_TYPES=[
-  {id:'kiku',  name:'菊',  sub:'黄金菊'},
-  {id:'botan', name:'牡丹',sub:'紅白牡丹'},
-  {id:'yanagi',name:'柳',  sub:'銀柳'},
-  {id:'kamuro',name:'錦冠',sub:'黄金冠'},
-  {id:'senrin',name:'千輪',sub:'彩色千輪'},
-  {id:'henko', name:'変色',sub:'虹色変色'},
+  {id:'kiku',    name:'菊',        sub:'黄金菊'},
+  {id:'botan',   name:'牡丹',      sub:'紅白牡丹'},
+  {id:'yanagi',  name:'柳',        sub:'銀柳'},
+  {id:'kamuro',  name:'錦冠',      sub:'黄金冠'},
+  {id:'senrin',  name:'千輪',      sub:'彩色千輪'},
+  {id:'henko',   name:'変色',      sub:'虹色変色'},
+  {id:'oyanagi', name:'大柳',      sub:'黄金大柳'},
+  {id:'starmine',name:'スターマイン',sub:'彩色連発'},
+  {id:'yashi',   name:'梛子',      sub:'黄金椰子'},
+  {id:'kaminari',name:'雷',        sub:'電光雷'},
+  {id:'kowari',  name:'小割',      sub:'六色小割'},
 ];
 
 class Firework{
@@ -196,9 +202,14 @@ class Firework{
       case'botan': this._botan(x,y,q,sN,lN,eG,bs,bl,rings);break;
       case'yanagi':this._yanagi(x,y,q,sN,lN,eG,bs,bl);break;
       case'kamuro':this._kamuro(x,y,q,sN,lN,bs,bl);break;
-      case'senrin':this._senrin(x,y,q,sN,lN,eG,bs,bl);break;
-      case'henko': this._henko(x,y,q,sN,lN,eG,bs,bl,rings);break;
-      default:     this._kiku(x,y,q,sN,lN,eG,bs,bl,rings);
+      case'senrin':  this._senrin(x,y,q,sN,lN,eG,bs,bl);break;
+      case'henko':   this._henko(x,y,q,sN,lN,eG,bs,bl,rings);break;
+      case'oyanagi': this._oyanagi(x,y,q,sN,lN,eG,bs,bl);break;
+      case'starmine':this._starmine(x,y,q,sN,lN,eG,bs,bl);break;
+      case'yashi':   this._yashi(x,y,q,sN,lN,eG,bs,bl);break;
+      case'kaminari':this._kaminari(x,y,q,sN,lN,eG,bs,bl);break;
+      case'kowari':  this._kowari(x,y,q,sN,lN,eG,bs,bl);break;
+      default:       this._kiku(x,y,q,sN,lN,eG,bs,bl,rings);
     }
   }
   _mk(x,y,ang,spd,cols,life,tl,gm,sN,lN,gl,eG){
@@ -261,6 +272,90 @@ class Firework{
       this.stars.push(this._mk(x,y,a,bs*0.50,['#0044ff','#4499ff','#88ccff','#ffffff','#ffccff'],bl*.74,12,1,sN*.5,lN*.5,false,eG*.6));}}
     if(rings>=3){const n3=~~(35*PM);for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2;
       this.stars.push(this._mk(x,y,a,bs*0.28,['#ffff00','#ffffff','#ccffff'],bl*.53,9,0.9,sN*.15,0,false,0));}}
+  }
+  // 大柳：超ロング金色垂れ柳
+  _oyanagi(x,y,q,sN,lN,eG,bs,bl){
+    const n=~~(110*PM);
+    for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2,d=(1-q)*0.004*Math.sin(a);
+      this.stars.push(this._mk(x,y,a+d,bs*1.25,['#fffacc','#ffee99','#ddbb55','#aa8833','#664411','#332200'],bl*1.65,30,3.4,sN,lN,true,eG));}
+    const n2=~~(65*PM);
+    for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2)*Math.PI*2;
+      this.stars.push(this._mk(x,y,a,bs*0.65,['#ffffff','#ffffee','#ddddaa','#999966','#554433'],bl*1.2,24,2.9,sN*.5,lN*.5,true,eG*.5));}
+    const n3=~~(32*PM);
+    for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2+0.05;
+      this.stars.push(this._mk(x,y,a,bs*0.32,['#ffffff','#ffffcc'],bl*0.9,18,2.2,sN*.2,0,false,eG*.3));}
+  }
+  // スターマイン：8色連続爆発
+  _starmine(x,y,q,sN,lN,eG,bs,bl){
+    const stages=[
+      {d:0, r:0.55,cols:['#ff2200','#ff6600','#ffaa00']},
+      {d:10,r:0.64,cols:['#0055ff','#44aaff','#ffffff']},
+      {d:20,r:0.72,cols:['#ff0099','#ff66dd','#ffffff']},
+      {d:30,r:0.80,cols:['#00cc44','#55ff99','#aaffcc']},
+      {d:40,r:0.88,cols:['#ffcc00','#ffee66','#ffffff']},
+      {d:50,r:0.95,cols:['#cc00ff','#ee77ff','#ffffff']},
+      {d:60,r:1.02,cols:['#ff6600','#ffcc44','#ffffcc']},
+      {d:70,r:1.12,cols:['#ffffff','#ffeecc','#ffcc88','#ff8844']},
+    ];
+    stages.forEach(s=>{
+      const n=~~(32*PM),list=[];
+      for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2,d=(1-q)*0.003*Math.sin(a);
+        list.push(this._mk(x,y,a+d,bs*s.r,s.cols,bl*0.72,10,0.88,sN*.5,lN*.4,true,eG));}
+      if(s.d===0)this.stars.push(...list);
+      else this.pending.push({t:s.d,list});
+    });
+  }
+  // 梛子(椰子)：上半球に広がる金棕櫚
+  _yashi(x,y,q,sN,lN,eG,bs,bl){
+    const n=~~(90*PM);
+    for(let i=0;i<n;i++){
+      const t=i/n;
+      const a=-Math.PI+t*Math.PI; // 上半球 -π〜0
+      const spd=bs*(0.95+0.4*Math.abs(Math.cos(a))); // 真上ほど速い
+      this.stars.push(this._mk(x,y,a+(1-q)*0.002*Math.sin(t*8),spd,
+        ['#ffffcc','#ffee99','#ccaa44','#886633','#443311'],bl*1.55,28,4.2,sN*.5,lN*.4,true,eG));}
+    const n2=~~(18*PM);
+    for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2-0.5)*0.5;
+      this.stars.push(this._mk(x,y,a,bs*1.3,['#ffffff','#ffffaa'],bl*0.72,20,2.8,0.08,0,true,eG));}
+  }
+  // 雷：電光閃光クラッカー
+  _kaminari(x,y,q,sN,lN,eG,bs,bl){
+    const n=~~(75*PM);
+    for(let i=0;i<n;i++){const a=-Math.PI/2+(i/n)*Math.PI*2;
+      this.stars.push(this._mk(x,y,a,bs*(0.8+Math.random()*0.9),['#ffffff','#eeeeff','#88aaff','#4466dd','#ffffff'],bl*0.82,5,0.32,0.5,0.3,true,eG));}
+    // 閃光リング
+    const fl1=[],n2=~~(55*PM);
+    for(let i=0;i<n2;i++){const a=-Math.PI/2+(i/n2)*Math.PI*2;
+      fl1.push(this._mk(x,y,a,bs*1.85,['#ffffff','#ccddff'],bl*0.28,2,0.08,0.12,0,true,0));}
+    this.pending.push({t:3,list:fl1});
+    // 第2クラッカー
+    const fl2=[],n3=~~(48*PM);
+    for(let i=0;i<n3;i++){const a=-Math.PI/2+(i/n3)*Math.PI*2+0.1;
+      fl2.push(this._mk(x,y,a,bs*1.1,['#aabbff','#ffffff','#6688ff'],bl*0.56,4,0.22,0.55,0.22,true,0));}
+    this.pending.push({t:10,list:fl2});
+    // 第3クラッカー
+    const fl3=[],n4=~~(40*PM);
+    for(let i=0;i<n4;i++){const a=-Math.PI/2+(i/n4)*Math.PI*2-0.07;
+      fl3.push(this._mk(x,y,a,bs*0.72,['#ffffff','#9999ff','#ffffff'],bl*0.44,3,0.38,0.6,0.28,false,0));}
+    this.pending.push({t:18,list:fl3});
+  }
+  // 小割：中心から6色小爆発
+  _kowari(x,y,q,sN,lN,eG,bs,bl){
+    const n0=~~(24*PM);
+    for(let i=0;i<n0;i++){const a=-Math.PI/2+(i/n0)*Math.PI*2;
+      this.stars.push(this._mk(x,y,a,bs*1.6,['#ffffff','#ffeecc'],bl*0.22,3,1.1,0.1,0,false,0));}
+    const subR=H*0.038;
+    [{cols:['#ff3300','#ff7700','#ffbb00']},{cols:['#0044ff','#44aaff','#aaccff']},
+     {cols:['#ff0077','#ff55aa','#ffffff']},{cols:['#00bb44','#44ff88','#aaffcc']},
+     {cols:['#ffaa00','#ffee44','#ffffff']},{cols:['#8800ff','#cc55ff','#eeccff']}
+    ].forEach((sc,si)=>{
+      const sa=-Math.PI/2+(si/6)*Math.PI*2;
+      const sx=x+Math.cos(sa)*subR,sy=y+Math.sin(sa)*subR;
+      const subN=~~(26*PM),subList=[];
+      for(let i=0;i<subN;i++){const a=-Math.PI/2+(i/subN)*Math.PI*2;
+        subList.push(this._mk(sx,sy,a,bs*0.52,sc.cols,bl*0.7,10,0.92,sN*.6,lN*.5,false,eG));}
+      this.pending.push({t:20+si*5,list:subList});
+    });
   }
   update(){
     this.age++;
