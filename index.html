@@ -570,18 +570,8 @@ function onInput(){
   if(state==='FINALE'){
     const cands=finaleRockets.filter(r=>r.started&&!r.exploded);
     if(cands.length>0){
-      const nearOnes=cands.filter(r=>r.nearPeak);
-      if(nearOnes.length>=2){
-        nearOnes.forEach(r=>explodeFinaleRocket(r));
-        if(nearOnes.length>=3){
-          comboPops.push({x:W/2,y:H*0.27,t:115,
-            txt:`${nearOnes.length}発 一斉爆発！`,col:'#ffaa22',sz:fs(0.055,38)});
-          shakeAmt=Math.max(shakeAmt,12);colorFlash=28;colorFlashCol='#ffeeaa';
-        }
-      }else{
-        const best=cands.reduce((a,b)=>Math.abs(a.offset)<Math.abs(b.offset)?a:b);
-        explodeFinaleRocket(best);
-      }
+      const best=cands.reduce((a,b)=>Math.abs(a.offset)<Math.abs(b.offset)?a:b);
+      explodeFinaleRocket(best);
     }
     return;
   }
