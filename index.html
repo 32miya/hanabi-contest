@@ -495,10 +495,19 @@ class FinaleRocket{
 // ── Scoring ────────────────────────────────────────────────────
 function calcScore(off){
   const o=Math.abs(off),rng=n=>~~(Math.random()*n)-~~(n/2);
-  const suwari=Math.max(0,Math.min(30,o<=1?30:o<=4?~~(30-(o-1)*3.2):o<=12?~~(20-(o-4)*2.2):Math.max(0,~~(3-(o-12)*.4))))+(o<=6?rng(3):0);
-  const bon=Math.max(0,Math.min(30,o<=2?29+rng(2):o<=7?~~(29-(o-2)*3.8)+rng(2):o<=16?~~(10-(o-7)*.9)+rng(2):Math.max(0,2-(o-16))));
-  const kata=Math.max(0,Math.min(20,o<=2?19+rng(2):o<=8?~~(19-(o-2)*2.3)+rng(2):Math.max(0,~~(5-(o-8)*.4))));
-  const kieguchi=Math.max(0,Math.min(20,o<=2?19+rng(2):o<=7?~~(19-(o-2)*2.6)+rng(2):Math.max(0,~~(6-(o-7)*.45))));
+  // 緩やかな得点曲線: off<=7（表示リング内）で65+/100点を保証
+  const suwari=Math.max(0,Math.min(30,
+    o<=1?30:o<=7?~~(30-(o-1)*1.6):o<=18?~~(21-(o-7)*1.2):Math.max(0,~~(7.8-(o-18)*0.4))
+  ))+(o<=8?rng(3):0);
+  const bon=Math.max(0,Math.min(30,
+    o<=2?29+rng(2):o<=7?~~(29-(o-2)*1.8)+rng(2):o<=18?~~(20-(o-7)*1.1)+rng(2):Math.max(0,~~(9-(o-18)*0.5))
+  ));
+  const kata=Math.max(0,Math.min(20,
+    o<=2?19+rng(2):o<=7?~~(19-(o-2)*1.2)+rng(2):o<=18?~~(13-(o-7)*0.65)+rng(2):Math.max(0,~~(4.8-(o-18)*0.2))
+  ));
+  const kieguchi=Math.max(0,Math.min(20,
+    o<=2?19+rng(2):o<=7?~~(19-(o-2)*1.2)+rng(2):o<=18?~~(13-(o-7)*0.70)+rng(2):Math.max(0,~~(4.5-(o-18)*0.25))
+  ));
   return{suwari,bon,kata,kieguchi,total:suwari+bon+kata+kieguchi,offset:off};
 }
 
@@ -575,6 +584,9 @@ let peakFlash=0,shakeAmt=0,boomCd=0;
 let crowdCheer=0,skyGlow=0,titleT=0;
 let finaleTimer=0,finaleWave=0,finaleRockets=[],finaleShots=[],finaleIntroT=0;
 let finaleCloseFired=false;
+let frenzyTimer=0,frenzyTotalFired=0,frenzyCombo=0,frenzyLastTap=-999;
+let frenzyRockets=[],frenzyIntroT=0,frenzyPhaseEnd=false;
+const FRENZY_DURATION=1200; // 20秒
 let colorFlash=0,colorFlashCol='#ffeeaa';
 let gHeavy=false,ptCount=0;
 let combo=0,comboPops=[];
@@ -604,6 +616,27 @@ function onInput(){
     }
     return;
   }
+  if(state==='FRENZY'&&!frenzyPhaseEnd){
+    const tapAge=fr-frenzyLastTap;
+    if(frenzyLastTap>0&&tapAge<=40)frenzyCombo=Math.min(frenzyCombo+1,80);
+    else frenzyCombo=Math.max(0,frenzyCombo-4);
+    frenzyLastTap=fr;
+    const rpt=Math.min(8,1+~~(frenzyCombo/8));
+    const safeRpt=ptCount>(IS_MOBILE?800:2500)?Math.min(rpt,2):rpt;
+    const prevTot=frenzyTotalFired;
+    for(let i=0;i<safeRpt;i++){
+      frenzyRockets.push(new FinaleRocket(W*(0.04+Math.random()*0.92),
+        FW_TYPES[~~(Math.random()*FW_TYPES.length)].id,~~(Math.random()*2)+1,i*4));
+      frenzyTotalFired++;
+    }
+    crowdCheer=100;skyGlow=Math.min(1,skyGlow+0.06);
+    const mils=[50,100,200,300,500];
+    if(mils.some(m=>prevTot<m&&frenzyTotalFired>=m)){
+      colorFlash=100;colorFlashCol='#ffffff';shakeAmt=Math.max(shakeAmt,32);
+      if(boomCd<=0){playBoom(6.0);boomCd=12;}playCrackle();
+    }
+    return;
+  }
   if(state==='SCORING'&&scPh>=maxScPhase()){advanceFromScore();return;}
   if(state==='RESULTS'){state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];titleT=0;return;}
 }
@@ -616,7 +649,7 @@ document.addEventListener('click',onInput);
 function initStage(idx){
   stageIdx=idx;const cfg=STAGE_CFG[idx];
   shotScores=[];rockets=[];combo=0;
-  if(idx===0)newRecord=false;
+  if(idx===0){newRecord=false;frenzyTotalFired=0;frenzyRockets=[];frenzyPhaseEnd=false;}
   const pool=cfg.pool?[...cfg.pool]:FW_TYPES.map(t=>t.id);
   shuffle(pool);shotTypes=pool.slice(0,cfg.shots);
   launchT=160;state='LAUNCHING';
@@ -673,6 +706,17 @@ function explodeFinaleRocket(r){
     col:combo>=5?'#ff8800':combo>=3?'#ffdd22':'#ffee88',sz:fs(0.038,26)});
   finaleShots.push(sc);
 }
+function explodeFrenzyRocket(r){
+  if(r.exploded||r.dead)return;
+  r.exploded=true;r.dead=true;
+  const capRings=ptCount>(IS_MOBILE?600:2200)?1:r.rings;
+  fws.push(new Firework(r.x,r.y,0,r.typeId,capRings));
+  lightBursts.push(new LightBurst(r.x,r.y,r.typeId));
+  colorFlash=10;colorFlashCol=TYPE_COLORS[r.typeId]||'#ffeeaa';
+  for(let k=0;k<~~(5*PM);k++)smokes.push(new SmokePuff(r.x,r.y,H*0.05));
+  if(boomCd<=0){playBoom(1.5);boomCd=4;}
+  shakeAmt=Math.max(shakeAmt,4);skyGlow=Math.min(1,skyGlow+0.12);
+}
 function onExplodeEnd(){
   const avg=Math.round(shotScores.reduce((a,s)=>a+s.total,0)/shotScores.length);
   stageScores.push({avg,shots:[...shotScores]});
@@ -684,6 +728,10 @@ function advanceFromScore(){
   else{state='FINALE_INTRO';finaleIntroT=150;}
 }
 function startFinale(){state='FINALE';finaleTimer=0;finaleWave=0;finaleRockets=[];finaleShots=[];boomCd=0;finaleCloseFired=false;}
+function startFrenzy(){
+  state='FRENZY';frenzyTimer=0;frenzyTotalFired=0;frenzyCombo=0;
+  frenzyLastTap=-999;frenzyRockets=[];frenzyPhaseEnd=false;crowdCheer=100;
+}
 
 // ── Background ─────────────────────────────────────────────────
 function drawSky(){
@@ -880,7 +928,7 @@ function uiScoringDetail(){
     txt('合　計',px+pw*0.28,ty,14,'#ffcc44','center');
     txt(`${sc.total}　点`,px+pw*0.73,ty,22,'#fff','center',8);
     const off=Math.abs(sc.offset);
-    txt(off<=2?'完璧！　玉の座りは申し分なし！':off<=5?'良好！　ほぼ頂点で開いた':off<=12?'惜しい…　もう少し頂点を狙おう':'まだまだ！　タイミングを磨け',
+    txt(off<=2?'完璧！　玉の座りは申し分なし！':off<=5?'良好！　ほぼ頂点で開いた':off<=9?'惜しい！　もう少し頂点に近づけよう':off<=15?'タイミングを磨こう！':'まだまだ！　リングが出たらタップ！',
         W/2,py+ph+22,fs(0.02,14),'rgba(255,210,120,0.75)');
     X.globalAlpha=0.45+0.55*Math.abs(Math.sin(fr*0.1));
     txt(IS_MOBILE?'タップで次へ':'タップ / スペースで次へ',W/2,py+ph+46,fs(0.018,13),'rgba(255,220,150,0.7)');
@@ -972,23 +1020,87 @@ function uiFinale(){
     const favg=Math.round(finaleShots.reduce((a,s)=>a+s.total,0)/finaleShots.length);
     txt(`フィナーレ ${finaleShots.length}発　平均 ${favg}点`,W/2,H*0.13,fs(0.018,13),'rgba(180,220,255,0.7)');
   }
-  if(finaleTimer>FINALE_END&&finaleRockets.length===0&&fws.length===0)state='RESULTS';
-  else if(finaleTimer>FINALE_END+360)state='RESULTS';
+  if(finaleTimer>FINALE_END&&finaleRockets.length===0&&fws.length===0){state='FRENZY_INTRO';frenzyIntroT=90;return;}
+  else if(finaleTimer>FINALE_END+360){state='FRENZY_INTRO';frenzyIntroT=90;}
+}
+
+function uiFrenzyIntro(){
+  frenzyIntroT--;
+  if(frenzyIntroT<=0){startFrenzy();return;}
+  const t=frenzyIntroT/90,flash=t>0.85?(1-t)*6:1;
+  X.fillStyle=`rgba(0,0,5,${t*0.55})`;X.fillRect(0,0,W,H);
+  X.globalAlpha=flash;
+  txt('連打クライマックス！',W/2,H*0.39,fs(0.092,54),'#ff4400','center',22);
+  X.globalAlpha=flash*0.75;
+  txt('タップ連打で花火を増やせ！',W/2,H*0.52,fs(0.034,22),'rgba(255,180,80,0.9)','center',8);
+  X.globalAlpha=flash*0.55;
+  txt('コンボが続くほど打ち上げ数が増える！',W/2,H*0.60,fs(0.024,16),'rgba(255,220,150,0.75)','center',4);
+  X.globalAlpha=1;
+}
+
+function uiFrenzy(){
+  frenzyTimer++;boomCd=Math.max(0,boomCd-1);
+  // Combo decay (per frame when not tapping)
+  if(fr-frenzyLastTap>40&&frenzyCombo>0)frenzyCombo=Math.max(0,frenzyCombo-1.0);
+  const remaining=Math.max(0,FRENZY_DURATION-frenzyTimer);
+  if(remaining<=0)frenzyPhaseEnd=true;
+  // End condition
+  if(frenzyPhaseEnd&&frenzyRockets.length===0){state='RESULTS';return;}
+  if(frenzyTimer>FRENZY_DURATION+300){state='RESULTS';return;}
+  // Header label
+  X.globalAlpha=(0.45+0.55*Math.abs(Math.sin(fr*0.04)))*0.9;
+  txt('連打クライマックス！',W/2,H*0.08,fs(0.04,26),'#ff4400','center',10);X.globalAlpha=1;
+  // Big fired count — pulses faster as count climbs
+  const pulse=1+0.04*Math.abs(Math.sin(fr*(0.2+frenzyTotalFired*0.0006)));
+  const countSz=IS_MOBILE?Math.min(W*0.18,78):Math.min(W*0.12,88);
+  const fireSt=frenzyTotalFired>=200?'#ff0000':frenzyTotalFired>=100?'#ff4400':frenzyTotalFired>=50?'#ff8800':'#ffee22';
+  X.save();X.translate(W/2,H*0.22);X.scale(pulse,pulse);
+  txt(`${frenzyTotalFired}発！`,0,0,countSz,fireSt,'center',24);X.restore();
+  // Combo multiplier badge
+  const rpt=Math.min(8,1+~~(frenzyCombo/8));
+  if(rpt>1){
+    const comboCol=rpt>=7?'#ff2200':rpt>=5?'#ff8800':rpt>=3?'#ffcc00':'#ffee88';
+    txt(`×${rpt} コンボ`,W/2,H*0.13,fs(0.045,28),comboCol,'center',12);
+  }
+  // Countdown bar
+  const barW=Math.min(200,W*0.48),bx=W/2-barW/2,by=H*0.05;
+  X.globalAlpha=0.6;X.fillStyle='#111';X.fillRect(bx,by,barW,7);
+  X.fillStyle=remaining<360?'#ff3300':remaining<600?'#ff8800':'#ffaa00';
+  X.fillRect(bx,by,barW*(remaining/FRENZY_DURATION),7);X.globalAlpha=1;
+  const secs=Math.ceil(remaining/60);
+  txt(`残り${secs}秒`,W*0.80,H*0.057,fs(0.02,14),'rgba(255,160,60,0.75)','center');
+  if(!frenzyPhaseEnd){
+    const p=0.65+0.35*Math.abs(Math.sin(fr*0.16));
+    X.globalAlpha=p;
+    const _bw=Math.min(340,W*0.90);
+    X.fillStyle='rgba(0,0,0,0.50)';X.fillRect(W/2-_bw/2,H*0.85-18,_bw,36);
+    txt('▶　タップ連打！　コンボを続けろ！　◀',W/2,H*0.85,fs(0.032,22),'#ff5500','center',14);
+    X.globalAlpha=1;
+  } else {
+    txt('フレンジー終了！',W/2,H*0.85,fs(0.05,30),'#ffcc44','center',14);
+  }
+  // Milestone white-sky overlay (フラッシュ)
+  if(colorFlash>60){
+    X.save();X.globalCompositeOperation='lighter';
+    X.globalAlpha=(colorFlash-60)/40*0.18;X.fillStyle='#ffffff';X.fillRect(0,0,W,H);
+    X.restore();X.globalAlpha=1;
+  }
 }
 
 function uiResults(){
   const stageTot=stageScores.reduce((a,s)=>a+s.avg,0);
   if(!newRecord&&stageTot>hiscore){hiscore=stageTot;localStorage.setItem('hanabi_hiscore',hiscore);newRecord=true;}
   let grade,gc,gsub;
-  if(stageTot>=300){grade='花火の神';gc='#fff';    gsub='神業！　満点達成！';}
-  else if(stageTot>=250){grade='花火名人';gc='#ffee22';gsub='250点以上　名人の域';}
-  else if(stageTot>=200){grade='花 火 師'; gc='#ffcc44';gsub='200点以上　一流の腕前';}
-  else if(stageTot>=150){grade='上　級';  gc='#88ccff';gsub='150点以上　かなりの実力';}
-  else if(stageTot>=100){grade='中　級';  gc='#77ee99';gsub='100点以上　まずまずの腕前';}
-  else if(stageTot>=50) {grade='初心者';  gc='#aacc88';gsub='50点以上　少しずつ上達';}
-  else                  {grade='修行中';  gc='#aaa';   gsub='タイミングを覚えよう';}
+  if(stageTot>=270){grade='花火の神';gc='#fff';    gsub='神業！　完璧なタイミング！';}
+  else if(stageTot>=220){grade='花火名人';gc='#ffee22';gsub='名人の域！　頂点を射抜く腕前';}
+  else if(stageTot>=170){grade='花 火 師'; gc='#ffcc44';gsub='一流の腕前！　会場が沸いた';}
+  else if(stageTot>=120){grade='上　級';  gc='#88ccff';gsub='かなりの腕前！　頂点に近い';}
+  else if(stageTot>=80) {grade='中　級';  gc='#77ee99';gsub='まずまず！　タイミングを磨こう';}
+  else if(stageTot>=40) {grade='初心者';  gc='#aacc88';gsub='頂点でタップを意識しよう';}
+  else                  {grade='修行中';  gc='#aaa';   gsub='リングが出たらタップ！';}
   const hasFinale=finaleShots.length>0;
-  const detailRows=stageScores.length+(hasFinale?1:0);
+  const hasFrenzy=frenzyTotalFired>0;
+  const detailRows=stageScores.length+(hasFinale?1:0)+(hasFrenzy?1:0);
   const dstep=IS_MOBILE?26:30;
   const pw=Math.min(W*0.88,420),ph=IS_MOBILE?252+detailRows*dstep:H*0.46;
   const px=W/2-pw/2,py=IS_MOBILE?H*0.36:H*0.25;
@@ -1012,7 +1124,7 @@ function uiResults(){
   X.globalAlpha=0.40;X.fillStyle='rgba(255,205,50,1)';
   X.fillRect(px+22,py+152,pw-44,1);X.globalAlpha=1;
   // Total score — prominent
-  txt(`${stageTot} / 300 点`,W/2,py+177,fs(0.075,34),'rgba(255,245,160,0.96)','center',10);
+  txt(`${stageTot} 点`,W/2,py+177,fs(0.075,34),'rgba(255,245,160,0.96)','center',10);
   // Stage breakdown — compact
   stageScores.forEach((ss,i)=>{
     txt(`${STAGE_CFG[i].label}　${ss.avg}点`,W/2,py+212+i*dstep,fs(0.04,16),'rgba(205,185,130,0.92)');
@@ -1020,6 +1132,10 @@ function uiResults(){
   if(hasFinale){
     const favg=Math.round(finaleShots.reduce((a,s)=>a+s.total,0)/finaleShots.length);
     txt(`大フィナーレ　${favg}点`,W/2,py+212+stageScores.length*dstep,fs(0.04,16),'rgba(170,215,255,0.92)');
+  }
+  if(hasFrenzy){
+    const fRow=stageScores.length+(hasFinale?1:0);
+    txt(`連打クライマックス　${frenzyTotalFired}発`,W/2,py+212+fRow*dstep,fs(0.04,16),'rgba(255,140,60,0.92)');
   }
   // Tap prompt just below card
   X.globalAlpha=0.5+0.5*Math.abs(Math.sin(fr*0.065));
@@ -1107,6 +1223,14 @@ function loop(){
     finaleRockets=finaleRockets.filter(r=>!r.dead);
   }
 
+  // Frenzy rockets
+  if(state==='FRENZY'){
+    frenzyRockets.forEach(r=>r.update());
+    frenzyRockets.forEach(r=>{if(!r.exploded&&r.started&&r.offset>45)explodeFrenzyRocket(r);});
+    frenzyRockets.forEach(r=>r.draw());
+    frenzyRockets=frenzyRockets.filter(r=>!r.dead);
+  }
+
   if(doShake)X.restore();
 
   if(state==='LAUNCHING'){launchT--;if(launchT<=0)doLaunch();}
@@ -1119,9 +1243,11 @@ function loop(){
     case'WAITING':     uiWaiting();    break;
     case'EXPLODING':   uiExploding();  break;
     case'SCORING':     uiScoring();    break;
-    case'FINALE_INTRO':uiFinaleIntro();break;
-    case'FINALE':      uiFinale();     break;
-    case'RESULTS':     uiResults();    break;
+    case'FINALE_INTRO': uiFinaleIntro(); break;
+    case'FINALE':       uiFinale();      break;
+    case'FRENZY_INTRO': uiFrenzyIntro(); break;
+    case'FRENZY':       uiFrenzy();      break;
+    case'RESULTS':      uiResults();     break;
   }
 
   requestAnimationFrame(loop);
