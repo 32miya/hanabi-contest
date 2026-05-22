@@ -547,6 +547,7 @@ let launchT=0,scT=0,scPh=0;
 let peakFlash=0,shakeAmt=0,boomCd=0;
 let crowdCheer=0,skyGlow=0,titleT=0;
 let finaleTimer=0,finaleWave=0,finaleRockets=[],finaleShots=[],finaleIntroT=0;
+let finaleCloseFired=false;
 let colorFlash=0,colorFlashCol='#ffeeaa';
 let gHeavy=false,ptCount=0;
 let combo=0,comboPops=[];
@@ -568,7 +569,7 @@ function onInput(){
     return;
   }
   if(state==='FINALE'){
-    const cands=finaleRockets.filter(r=>r.started&&!r.exploded);
+    const cands=finaleRockets.filter(r=>r.started&&!r.exploded&&!r.grand);
     if(cands.length>0){
       const best=cands.reduce((a,b)=>Math.abs(a.offset)<Math.abs(b.offset)?a:b);
       explodeFinaleRocket(best);
@@ -646,7 +647,7 @@ function advanceFromScore(){
   if(stageIdx<STAGE_CFG.length-1)initStage(stageIdx+1);
   else{state='FINALE_INTRO';finaleIntroT=150;}
 }
-function startFinale(){state='FINALE';finaleTimer=0;finaleWave=0;finaleRockets=[];finaleShots=[];boomCd=0;}
+function startFinale(){state='FINALE';finaleTimer=0;finaleWave=0;finaleRockets=[];finaleShots=[];boomCd=0;finaleCloseFired=false;}
 
 // ── Background ─────────────────────────────────────────────────
 function drawSky(){
@@ -909,11 +910,16 @@ function uiFinale(){
     });
     finaleWave++;
   }
+  // 大締め：全ランダム花火が終わったら中央から三重芯の大尺玉を1発
+  if(!finaleCloseFired&&finaleTimer>=640&&finaleRockets.length===0){
+    const gr=new FinaleRocket(W*0.5,'kiku',3,0);
+    gr.grand=true;finaleRockets.push(gr);finaleCloseFired=true;
+  }
   X.globalAlpha=(0.4+0.6*Math.abs(Math.sin(fr*0.04)))*0.8;
   txt('大フィナーレ！',W/2,H*0.08,fs(0.04,28),'#ffcc44','center',10);
   X.globalAlpha=1;
-  // タップ促進
-  const active=finaleRockets.filter(r=>r.started&&!r.exploded);
+  // タップ促進（大締め中は非表示）
+  const active=finaleRockets.filter(r=>r.started&&!r.exploded&&!r.grand);
   if(active.length>0){
     const anyNear=active.some(r=>r.nearPeak);
     const anyUrgent=active.some(r=>Math.abs(r.offset)<=3);
@@ -1041,6 +1047,19 @@ function loop(){
   // Finale rockets
   if(state==='FINALE'){
     finaleRockets.forEach(r=>r.update());
+    // Grand finale closing shot: auto-detonate exactly at peak
+    finaleRockets.forEach(r=>{
+      if(r.grand&&r.started&&!r.exploded&&r.offset>=0){
+        r.exploded=true;r.dead=true;
+        fws.push(new Firework(r.x,r.y,0,'kiku',3));
+        lightBursts.push(new LightBurst(r.x,r.y,'kiku'));
+        colorFlash=50;colorFlashCol='#ffcc44';
+        shakeAmt=Math.max(shakeAmt,22);skyGlow=1;crowdCheer=100;
+        if(boomCd<=0){playBoom(5.5);boomCd=14;}
+        playCrackle();
+        comboPops.push({x:W/2,y:H*0.3,t:85,txt:'大 締 め！',col:'#ffdd22',sz:fs(0.08,52)});
+      }
+    });
     finaleRockets.forEach(r=>r.draw());
     finaleRockets=finaleRockets.filter(r=>!r.dead);
   }
