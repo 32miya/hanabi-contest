@@ -585,7 +585,7 @@ let crowdCheer=0,skyGlow=0,titleT=0;
 let finaleTimer=0,finaleWave=0,finaleRockets=[],finaleShots=[],finaleIntroT=0;
 let finaleCloseFired=false;
 let frenzyTimer=0,frenzyTotalFired=0,frenzyCombo=0,frenzyLastTap=-999;
-let frenzyRockets=[],frenzyIntroT=0,frenzyPhaseEnd=false;
+let frenzyRockets=[],frenzyIntroT=0,frenzyPhaseEnd=false,frenzyTapCharge=0;
 const FRENZY_DURATION=1200; // 20秒
 let colorFlash=0,colorFlashCol='#ffeeaa';
 let gHeavy=false,ptCount=0;
@@ -617,23 +617,31 @@ function onInput(){
     return;
   }
   if(state==='FRENZY'&&!frenzyPhaseEnd){
+    // コンボ更新（毎タップ）
     const tapAge=fr-frenzyLastTap;
     if(frenzyLastTap>0&&tapAge<=40)frenzyCombo=Math.min(frenzyCombo+1,80);
     else frenzyCombo=Math.max(0,frenzyCombo-4);
     frenzyLastTap=fr;
-    const rpt=Math.min(8,1+~~(frenzyCombo/8));
-    const safeRpt=ptCount>(IS_MOBILE?800:2500)?Math.min(rpt,2):rpt;
-    const prevTot=frenzyTotalFired;
-    for(let i=0;i<safeRpt;i++){
-      frenzyRockets.push(new FinaleRocket(W*(0.04+Math.random()*0.92),
-        FW_TYPES[~~(Math.random()*FW_TYPES.length)].id,~~(Math.random()*2)+1,i*4));
-      frenzyTotalFired++;
-    }
-    crowdCheer=100;skyGlow=Math.min(1,skyGlow+0.06);
-    const mils=[50,100,200,300,500];
-    if(mils.some(m=>prevTot<m&&frenzyTotalFired>=m)){
-      colorFlash=100;colorFlashCol='#ffffff';shakeAmt=Math.max(shakeAmt,32);
-      if(boomCd<=0){playBoom(6.0);boomCd=12;}playCrackle();
+    // タップチャージ: 発数に応じて必要タップ数が増加
+    const tapRequired=frenzyTotalFired>=1500?4:frenzyTotalFired>=1000?3:frenzyTotalFired>=500?2:1;
+    frenzyTapCharge++;
+    crowdCheer=100;
+    if(frenzyTapCharge>=tapRequired){
+      frenzyTapCharge=0;
+      const rpt=Math.min(8,1+~~(frenzyCombo/8));
+      const safeRpt=ptCount>(IS_MOBILE?800:2500)?Math.min(rpt,2):rpt;
+      const prevTot=frenzyTotalFired;
+      for(let i=0;i<safeRpt;i++){
+        frenzyRockets.push(new FinaleRocket(W*(0.04+Math.random()*0.92),
+          FW_TYPES[~~(Math.random()*FW_TYPES.length)].id,~~(Math.random()*2)+1,i*4));
+        frenzyTotalFired++;
+      }
+      skyGlow=Math.min(1,skyGlow+0.06);
+      const mils=[50,100,200,300,500,1000,1500];
+      if(mils.some(m=>prevTot<m&&frenzyTotalFired>=m)){
+        colorFlash=100;colorFlashCol='#ffffff';shakeAmt=Math.max(shakeAmt,34);
+        if(boomCd<=0){playBoom(6.0);boomCd=12;}playCrackle();
+      }
     }
     return;
   }
@@ -649,7 +657,7 @@ document.addEventListener('click',onInput);
 function initStage(idx){
   stageIdx=idx;const cfg=STAGE_CFG[idx];
   shotScores=[];rockets=[];combo=0;
-  if(idx===0){newRecord=false;frenzyTotalFired=0;frenzyRockets=[];frenzyPhaseEnd=false;}
+  if(idx===0){newRecord=false;frenzyTotalFired=0;frenzyRockets=[];frenzyPhaseEnd=false;frenzyTapCharge=0;}
   const pool=cfg.pool?[...cfg.pool]:FW_TYPES.map(t=>t.id);
   shuffle(pool);shotTypes=pool.slice(0,cfg.shots);
   launchT=160;state='LAUNCHING';
@@ -730,7 +738,7 @@ function advanceFromScore(){
 function startFinale(){state='FINALE';finaleTimer=0;finaleWave=0;finaleRockets=[];finaleShots=[];boomCd=0;finaleCloseFired=false;}
 function startFrenzy(){
   state='FRENZY';frenzyTimer=0;frenzyTotalFired=0;frenzyCombo=0;
-  frenzyLastTap=-999;frenzyRockets=[];frenzyPhaseEnd=false;crowdCheer=100;
+  frenzyLastTap=-999;frenzyRockets=[];frenzyPhaseEnd=false;frenzyTapCharge=0;crowdCheer=100;
 }
 
 // ── Background ─────────────────────────────────────────────────
@@ -1020,8 +1028,14 @@ function uiFinale(){
     const favg=Math.round(finaleShots.reduce((a,s)=>a+s.total,0)/finaleShots.length);
     txt(`フィナーレ ${finaleShots.length}発　平均 ${favg}点`,W/2,H*0.13,fs(0.018,13),'rgba(180,220,255,0.7)');
   }
-  if(finaleTimer>FINALE_END&&finaleRockets.length===0&&fws.length===0){state='FRENZY_INTRO';frenzyIntroT=90;return;}
-  else if(finaleTimer>FINALE_END+360){state='FRENZY_INTRO';frenzyIntroT=90;}
+  const _stageTot=stageScores.reduce((a,s)=>a+s.avg,0);
+  const _unlock=_stageTot>=220; // 花火名人以上でFRENZY解放
+  if(finaleTimer>FINALE_END&&finaleRockets.length===0&&fws.length===0){
+    if(_unlock){state='FRENZY_INTRO';frenzyIntroT=90;}else{state='RESULTS';}return;
+  }
+  else if(finaleTimer>FINALE_END+360){
+    if(_unlock){state='FRENZY_INTRO';frenzyIntroT=90;}else{state='RESULTS';}
+  }
 }
 
 function uiFrenzyIntro(){
@@ -1053,7 +1067,7 @@ function uiFrenzy(){
   // Big fired count — pulses faster as count climbs
   const pulse=1+0.04*Math.abs(Math.sin(fr*(0.2+frenzyTotalFired*0.0006)));
   const countSz=IS_MOBILE?Math.min(W*0.18,78):Math.min(W*0.12,88);
-  const fireSt=frenzyTotalFired>=200?'#ff0000':frenzyTotalFired>=100?'#ff4400':frenzyTotalFired>=50?'#ff8800':'#ffee22';
+  const fireSt=frenzyTotalFired>=1500?'#cc00ff':frenzyTotalFired>=1000?'#ff0000':frenzyTotalFired>=500?'#ff6600':frenzyTotalFired>=100?'#ff9900':'#ffee22';
   X.save();X.translate(W/2,H*0.22);X.scale(pulse,pulse);
   txt(`${frenzyTotalFired}発！`,0,0,countSz,fireSt,'center',24);X.restore();
   // Combo multiplier badge
@@ -1061,6 +1075,13 @@ function uiFrenzy(){
   if(rpt>1){
     const comboCol=rpt>=7?'#ff2200':rpt>=5?'#ff8800':rpt>=3?'#ffcc00':'#ffee88';
     txt(`×${rpt} コンボ`,W/2,H*0.13,fs(0.045,28),comboCol,'center',12);
+  }
+  // タップチャージインジケーター
+  const tapRequired=frenzyTotalFired>=1500?4:frenzyTotalFired>=1000?3:frenzyTotalFired>=500?2:1;
+  if(tapRequired>1){
+    const dots=Array.from({length:tapRequired},(_,i)=>i<frenzyTapCharge?'●':'○').join('');
+    const tierCol=tapRequired>=4?'#cc44ff':tapRequired>=3?'#ff4400':'#ff8800';
+    txt(`${dots}　${tapRequired}タップで1発`,W/2,H*0.32,fs(0.032,20),tierCol,'center',8);
   }
   // Countdown bar
   const barW=Math.min(200,W*0.48),bx=W/2-barW/2,by=H*0.05;
@@ -1074,7 +1095,8 @@ function uiFrenzy(){
     X.globalAlpha=p;
     const _bw=Math.min(340,W*0.90);
     X.fillStyle='rgba(0,0,0,0.50)';X.fillRect(W/2-_bw/2,H*0.85-18,_bw,36);
-    txt('▶　タップ連打！　コンボを続けろ！　◀',W/2,H*0.85,fs(0.032,22),'#ff5500','center',14);
+    const tapHint=tapRequired>1?`${tapRequired}タップで1発！　連打！`:'▶　タップ連打！　コンボを続けろ！　◀';
+    txt(tapHint,W/2,H*0.85,fs(0.032,22),tapRequired>1?'#ff8800':'#ff5500','center',14);
     X.globalAlpha=1;
   } else {
     txt('フレンジー終了！',W/2,H*0.85,fs(0.05,30),'#ffcc44','center',14);
@@ -1136,6 +1158,10 @@ function uiResults(){
   if(hasFrenzy){
     const fRow=stageScores.length+(hasFinale?1:0);
     txt(`連打クライマックス　${frenzyTotalFired}発`,W/2,py+212+fRow*dstep,fs(0.04,16),'rgba(255,140,60,0.92)');
+  } else if(stageTot<220){
+    // 未解放時ヒント
+    const fRow=stageScores.length+(hasFinale?1:0);
+    txt('花火名人以上で連打クライマックス解放！',W/2,py+212+fRow*dstep,fs(0.032,14),'rgba(160,140,90,0.55)');
   }
   // Tap prompt just below card
   X.globalAlpha=0.5+0.5*Math.abs(Math.sin(fr*0.065));
