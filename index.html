@@ -1378,7 +1378,11 @@ function uiResults(){
   const detailRows=stageScores.length+(hasFinale?1:0)+(hasFrenzy?1:0);
   const dstep=IS_MOBILE?26:30;
   const pw=Math.min(W*0.88,420),ph=IS_MOBILE?252+detailRows*dstep:H*0.46;
-  const px=W/2-pw/2,py=IS_MOBILE?H*0.36:H*0.25;
+  const bh=IS_MOBILE?44:40,btnGap=IS_MOBILE?10:14;
+  // py: keep preferred position but pull up if buttons would go off-screen
+  const py=Math.max(IS_MOBILE?H*0.03:H*0.06,
+    Math.min(IS_MOBILE?H*0.36:H*0.25, H-ph-btnGap-bh-10));
+  const px=W/2-pw/2;
   // Panel (custom draw for results — slightly open to show fireworks behind)
   X.save();X.shadowColor='rgba(255,160,0,0.6)';X.shadowBlur=26;
   X.fillStyle='rgba(2,3,18,0.84)';X.strokeStyle='rgba(255,205,60,0.85)';X.lineWidth=1.8;
@@ -1417,8 +1421,7 @@ function uiResults(){
     txt('花火名人以上で連打クライマックス解放！',W/2,py+212+fRow*dstep,fs(0.032,14),'rgba(160,140,90,0.55)');
   }
   // ── Buttons below card ──────────────────────────────────────
-  const byBtn=py+ph+(IS_MOBILE?12:16);
-  const bh=IS_MOBILE?50:44;
+  const byBtn=py+ph+btnGap;
   const hasReplay=replayLog.length>0;
   _btnReplay=null;_btnTitle=null;
   if(hasReplay){
@@ -1470,8 +1473,15 @@ function loop(){
   fr++;
   if(state==='FINALE'||state==='FRENZY')recordingFrame++;
   const isReplay=state==='REPLAY';
-  if(isReplay){X.fillStyle='#000108';X.fillRect(0,0,W,H);_rpTX=W*0.225;_rpTY=H*0.10;_rpScale=0.55;X.save();X.translate(_rpTX,_rpTY);X.scale(_rpScale,_rpScale);}
-  drawSky();drawBGStars();drawMoon();drawCity();drawCrowd();
+  if(isReplay){
+    X.fillStyle='#000108';X.fillRect(0,0,W,H);
+    _rpTX=W*0.225;_rpTY=H*0.10;_rpScale=0.55;
+    drawSky();drawBGStars();drawMoon(); // full canvas — no black side strips
+    X.save();X.translate(_rpTX,_rpTY);X.scale(_rpScale,_rpScale);
+    drawCity();drawCrowd();
+  } else {
+    drawSky();drawBGStars();drawMoon();drawCity();drawCrowd();
+  }
 
   const doShake=shakeAmt>0.3;
   if(doShake){X.save();X.translate((Math.random()-0.5)*shakeAmt,(Math.random()-0.5)*shakeAmt*0.5);shakeAmt*=0.82;}
