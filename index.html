@@ -1179,10 +1179,17 @@ function uiFrenzy(){
 
 function drawReplayWater(){
   const sc=_rpScale,tx=_rpTX,ty=_rpTY;
-  const wy=ty+H*0.64*sc; // water surface in canvas coords ≈ H*0.452
+  const wy=ty+H*sc; // water surface = bottom of scaled viewport (canvas ≈ H*0.65)
   const wbottom=H*0.90;
   const wh=wbottom-wy;
   if(wh<=0)return;
+
+  // Shoreline edge glow — separates sky from water
+  const shoreGrad=X.createLinearGradient(0,wy-10,0,wy+10);
+  shoreGrad.addColorStop(0,'rgba(30,70,130,0)');
+  shoreGrad.addColorStop(0.5,'rgba(70,150,220,0.22)');
+  shoreGrad.addColorStop(1,'rgba(0,20,60,0)');
+  X.fillStyle=shoreGrad;X.fillRect(0,wy-10,W,20);
 
   // Dark water background
   const bg=X.createLinearGradient(0,wy,0,wbottom);
@@ -1476,9 +1483,9 @@ function loop(){
   if(isReplay){
     X.fillStyle='#000108';X.fillRect(0,0,W,H);
     _rpTX=W*0.225;_rpTY=H*0.10;_rpScale=0.55;
-    drawSky();drawBGStars();drawMoon(); // full canvas — no black side strips
+    drawSky();drawBGStars(); // full canvas — fills entire screen width
     X.save();X.translate(_rpTX,_rpTY);X.scale(_rpScale,_rpScale);
-    drawCity();drawCrowd();
+    drawMoon();drawCity();drawCrowd(); // scaled space — moon stays inside letterbox
   } else {
     drawSky();drawBGStars();drawMoon();drawCity();drawCrowd();
   }
