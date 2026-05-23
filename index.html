@@ -746,6 +746,7 @@ function onRocketExplode(r){
     txt:combo>=5?`${combo}連続 大コンボ！`:combo>=3?`${combo}連続コンボ！`:`${combo}連続！`,
     col:combo>=5?'#ff8800':combo>=3?'#ffdd22':'#ffee88',sz:fs(0.038,26)});
   shotScores.push(sc);
+  replayLog.push({t:recordingFrame,x:r.x,y:r.y,typeId:r.typeId,rings:r.rings,sc:sc.total});
   crowdCheer=Math.max(crowdCheer,(sc.total-40)/60*100);
   shakeAmt=Math.min(10,2+sc.total*0.05);
   skyGlow=Math.min(1,skyGlow+0.20);
@@ -798,7 +799,7 @@ function advanceFromScore(){
   if(stageIdx<STAGE_CFG.length-1)initStage(stageIdx+1);
   else{state='FINALE_INTRO';finaleIntroT=150;}
 }
-function startFinale(){state='FINALE';finaleTimer=0;finaleWave=0;finaleRockets=[];finaleShots=[];boomCd=0;finaleCloseFired=false;replayLog=[];recordingFrame=0;}
+function startFinale(){state='FINALE';finaleTimer=0;finaleWave=0;finaleRockets=[];finaleShots=[];boomCd=0;finaleCloseFired=false;}
 function startFrenzy(){
   state='FRENZY';frenzyTimer=0;frenzyTotalFired=0;frenzyCombo=0;
   frenzyLastTap=-999;frenzyRockets=[];frenzyPhaseEnd=false;frenzyTapCharge=0;crowdCheer=100;
@@ -1177,6 +1178,37 @@ function uiFrenzy(){
   }
 }
 
+function drawReplayShore(){
+  const wy=_rpTY+H*_rpScale; // = canvas H*0.65
+  const sh=H*0.038; // shore band height
+  // Shore silhouette body
+  X.fillStyle='#010208';
+  X.beginPath();
+  X.moveTo(0,wy);
+  // Irregular skyline profile (distant low buildings / hills)
+  [[0,0.52],[0.04,0.68],[0.09,0.44],[0.15,0.60],[0.21,0.36],
+   [0.27,0.54],[0.33,0.70],[0.40,0.40],[0.47,0.56],[0.53,0.28],
+   [0.59,0.46],[0.65,0.64],[0.71,0.38],[0.77,0.56],[0.83,0.42],
+   [0.89,0.66],[0.94,0.48],[1.00,0.54]
+  ].forEach(([xf,yf])=>X.lineTo(xf*W, wy-sh*yf));
+  X.lineTo(W,wy);
+  X.closePath();X.fill();
+  // Distant city lights (deterministic)
+  for(let i=0;i<24;i++){
+    const lx=(i*W/24+(i*97)%~~(W*0.035))%W;
+    const lyOff=sh*(0.08+((i*53+7)%10)*0.045);
+    const pulse=0.55+0.45*Math.abs(Math.sin(fr*0.05+i*0.88));
+    X.globalAlpha=(0.18+((i*29)%7)*0.05)*pulse;
+    X.fillStyle='rgba(255,241,155,1)';
+    X.fillRect(lx,wy-lyOff,IS_MOBILE?1.4:2,IS_MOBILE?2:3);
+  }
+  X.globalAlpha=1;
+  // Waterline highlight
+  X.strokeStyle='rgba(80,150,210,0.30)';
+  X.lineWidth=1.2;
+  X.beginPath();X.moveTo(0,wy);X.lineTo(W,wy);X.stroke();
+}
+
 function drawReplayWater(){
   const sc=_rpScale,tx=_rpTX,ty=_rpTY;
   const wy=ty+H*sc; // water surface = bottom of scaled viewport (canvas ≈ H*0.65)
@@ -1331,8 +1363,9 @@ function uiReplay(){
     const rl=(ev.grand?90:ev.sc>=60?70:42)+~~(Math.random()*20);
     waterRipples.push({x:_rpTX+ev.x*_rpScale,rad:ev.grand?16:8,life:rl,maxLife:rl,col:TYPE_COLORS[ev.typeId]||'#ffcc44',dead:false});
   }
-  // Restore replay zoom — draw audience/water in canvas space
+  // Restore replay zoom — draw shore/water in canvas space
   X.restore();
+  drawReplayShore();  // land silhouette between sky and water
   // Camera flashes from audience (canvas space)
   cameraFlashes.forEach(f=>{f.update();f.draw();});
   cameraFlashes=cameraFlashes.filter(f=>!f.dead);
@@ -1478,7 +1511,7 @@ function spawnTitleFw(){
 // ── Main loop ──────────────────────────────────────────────────
 function loop(){
   fr++;
-  if(state==='FINALE'||state==='FRENZY')recordingFrame++;
+  if(state!=='TITLE'&&state!=='RESULTS'&&state!=='REPLAY')recordingFrame++;
   const isReplay=state==='REPLAY';
   if(isReplay){
     X.fillStyle='#000108';X.fillRect(0,0,W,H);
