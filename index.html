@@ -627,6 +627,7 @@ let combo=0,comboPops=[];
 let smokes=[],crowdReacts=[];
 let replayLog=[],recordingFrame=0,replayTimer=0,replayCursor=0,cameraFlashes=[],waterRipples=[];
 let _rpScale=0.55,_rpTX=0,_rpTY=0;
+let _px=0,_py=0,_btnReplay=null,_btnTitle=null;
 let hiscore=+(localStorage.getItem('hanabi_hiscore')||0);
 let newRecord=false;
 
@@ -682,13 +683,36 @@ function onInput(){
     return;
   }
   if(state==='SCORING'&&scPh>=maxScPhase()){advanceFromScore();return;}
-  if(state==='REPLAY'){state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];cameraFlashes=[];titleT=0;return;}
-  if(state==='RESULTS'){if(replayLog.length>0){startReplay();return;}state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];titleT=0;return;}
+  if(state==='REPLAY'){
+    state='RESULTS';fws=[];lightBursts=[];smokes=[];crowdReacts=[];cameraFlashes=[];waterRipples=[];
+    shakeAmt=0;skyGlow=0;return;
+  }
+  if(state==='RESULTS'){
+    const kbInput=(_px<0&&_py<0);
+    if(!kbInput){
+      // Hit-test replay button
+      if(_btnReplay&&_px>=_btnReplay.x&&_px<=_btnReplay.x+_btnReplay.w
+          &&_py>=_btnReplay.y&&_py<=_btnReplay.y+_btnReplay.h){startReplay();return;}
+      // Hit-test title button
+      if(_btnTitle&&_px>=_btnTitle.x&&_px<=_btnTitle.x+_btnTitle.w
+          &&_py>=_btnTitle.y&&_py<=_btnTitle.y+_btnTitle.h){
+        state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];titleT=0;return;
+      }
+      return; // tap outside buttons → no-op (prevent misfire)
+    }
+    // Keyboard: prefer replay
+    if(replayLog.length>0){startReplay();return;}
+    state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];titleT=0;return;
+  }
 }
-document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='Enter'){e.preventDefault();onInput();}});
-document.addEventListener('touchstart',e=>{e.preventDefault();onInput();},{passive:false});
+document.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='Enter'){e.preventDefault();_px=-1;_py=-1;onInput();}});
+document.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(e.touches.length){const r=C.getBoundingClientRect();_px=e.touches[0].clientX-r.left;_py=e.touches[0].clientY-r.top;}
+  onInput();
+},{passive:false});
 document.addEventListener('touchmove',e=>{e.preventDefault();},{passive:false});
-document.addEventListener('click',onInput);
+document.addEventListener('click',e=>{const r=C.getBoundingClientRect();_px=e.clientX-r.left;_py=e.clientY-r.top;onInput();});
 
 // ── Game logic ─────────────────────────────────────────────────
 function initStage(idx){
@@ -1331,9 +1355,10 @@ function uiReplay(){
   X.globalAlpha=0.38+0.28*Math.abs(Math.sin(fr*0.09));
   txt(IS_MOBILE?'タップでスキップ':'クリック / スペースでスキップ',W/2,H-barH*0.18,fs(0.015,11),'rgba(200,175,110,0.7)');
   X.globalAlpha=1;
-  // Completion check
+  // Completion check → back to RESULTS
   if(replayTimer>endT+360||(replayCursor>=replayLog.length&&fws.length===0&&replayTimer>180)){
-    state='TITLE';fws=[];lightBursts=[];smokes=[];crowdReacts=[];cameraFlashes=[];titleT=0;
+    state='RESULTS';fws=[];lightBursts=[];smokes=[];crowdReacts=[];cameraFlashes=[];waterRipples=[];
+    shakeAmt=0;skyGlow=0;
   }
 }
 
@@ -1391,13 +1416,39 @@ function uiResults(){
     const fRow=stageScores.length+(hasFinale?1:0);
     txt('花火名人以上で連打クライマックス解放！',W/2,py+212+fRow*dstep,fs(0.032,14),'rgba(160,140,90,0.55)');
   }
-  // Tap prompt just below card
-  X.globalAlpha=0.5+0.5*Math.abs(Math.sin(fr*0.065));
-  const _rpHint=replayLog.length>0?
-    (IS_MOBILE?'▶ タップでリプレイ':'▶ タップ / スペースでリプレイ'):
-    (IS_MOBILE?'タップでタイトルへ':'タップ / スペースでタイトルへ');
-  txt(_rpHint,W/2,IS_MOBILE?py+232+detailRows*dstep:py+ph+36,fs(0.05,20),'rgba(255,225,155,0.95)');
-  X.globalAlpha=1;
+  // ── Buttons below card ──────────────────────────────────────
+  const byBtn=py+ph+(IS_MOBILE?12:16);
+  const bh=IS_MOBILE?50:44;
+  const hasReplay=replayLog.length>0;
+  _btnReplay=null;_btnTitle=null;
+  if(hasReplay){
+    const gap=10,bw=(pw-gap)/2;
+    // Replay button (left / orange)
+    const rbx=px,rby=byBtn;
+    _btnReplay={x:rbx,y:rby,w:bw,h:bh};
+    const rpulse=0.7+0.3*Math.abs(Math.sin(fr*0.075));
+    X.save();X.shadowColor=`rgba(255,140,0,${rpulse*0.8})`;X.shadowBlur=14;
+    X.fillStyle='rgba(160,50,0,0.88)';X.strokeStyle=`rgba(255,170,60,${rpulse})`;X.lineWidth=2;
+    X.beginPath();X.roundRect(rbx,rby,bw,bh,8);X.fill();X.stroke();X.restore();
+    txt('▶  リプレイ',rbx+bw/2,rby+bh/2,fs(0.042,18),'#ffd880','center',10);
+    // Title button (right / gray-blue)
+    const tbx=px+bw+gap,tby=byBtn;
+    _btnTitle={x:tbx,y:tby,w:bw,h:bh};
+    X.save();X.shadowColor='rgba(60,60,100,0.5)';X.shadowBlur=8;
+    X.fillStyle='rgba(8,10,28,0.88)';X.strokeStyle='rgba(120,130,175,0.75)';X.lineWidth=1.6;
+    X.beginPath();X.roundRect(tbx,tby,bw,bh,8);X.fill();X.stroke();X.restore();
+    txt('タイトルへ',tbx+bw/2,tby+bh/2,fs(0.038,16),'rgba(175,180,220,0.90)','center',5);
+  } else {
+    // No replay — single title button full width
+    _btnTitle={x:px,y:byBtn,w:pw,h:bh};
+    X.save();X.shadowColor='rgba(60,60,100,0.5)';X.shadowBlur=8;
+    X.fillStyle='rgba(8,10,28,0.88)';X.strokeStyle='rgba(120,130,175,0.75)';X.lineWidth=1.6;
+    X.beginPath();X.roundRect(px,byBtn,pw,bh,8);X.fill();X.stroke();X.restore();
+    const pulse=0.65+0.35*Math.abs(Math.sin(fr*0.07));
+    X.globalAlpha=pulse;
+    txt(IS_MOBILE?'タップでタイトルへ':'クリックでタイトルへ',px+pw/2,byBtn+bh/2,fs(0.042,18),'rgba(175,180,220,0.95)','center',5);
+    X.globalAlpha=1;
+  }
 }
 
 function uiHeader(){
