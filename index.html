@@ -1171,11 +1171,13 @@ function uiReplay(){
       if(ev.sc>=80||ev.grand)playCheer();
     }
   }
-  // Camera flashes from audience
+  // Camera flashes from audience (drawn in scaled space)
   cameraFlashes.forEach(f=>{f.update();f.draw();});
   cameraFlashes=cameraFlashes.filter(f=>!f.dead);
+  // Restore replay zoom — draw UI in full-canvas unscaled space
+  X.restore();
   // Cinematic letterbox bars
-  const barH=H*0.09;
+  const barH=H*0.10;
   X.fillStyle='#000';
   X.fillRect(0,0,W,barH);X.fillRect(0,H-barH,W,barH);
   // REPLAY badge (top-left)
@@ -1285,6 +1287,8 @@ function spawnTitleFw(){
 function loop(){
   fr++;
   if(state==='FINALE'||state==='FRENZY')recordingFrame++;
+  const isReplay=state==='REPLAY';
+  if(isReplay){X.fillStyle='#000108';X.fillRect(0,0,W,H);X.save();X.translate(W*0.10,H*0.10);X.scale(0.80,0.80);}
   drawSky();drawBGStars();drawMoon();drawCity();drawCrowd();
 
   const doShake=shakeAmt>0.3;
