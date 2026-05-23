@@ -542,7 +542,11 @@ function calcScore(off){
   const kieguchi=Math.max(0,Math.min(20,
     o<=2?19+rng(2):o<=7?~~(19-(o-2)*1.2)+rng(2):o<=18?~~(13-(o-7)*0.70)+rng(2):Math.max(0,~~(4.5-(o-18)*0.25))
   ));
-  return{suwari,bon,kata,kieguchi,total:suwari+bon+kata+kieguchi,offset:off};
+  // 彩り: 精度ボーナス（最大20点）— ±1フレーム以内で満点
+  const irodori=Math.max(0,Math.min(20,
+    o<=1?20:o<=3?~~(20-(o-1)*4)+rng(2):o<=7?~~(12-(o-3)*1.5)+rng(2):Math.max(0,~~(6-(o-7)*0.4))
+  ));
+  return{suwari,bon,kata,kieguchi,irodori,total:suwari+bon+kata+kieguchi+irodori,offset:off};
 }
 
 // ── Rocket ─────────────────────────────────────────────────────
@@ -595,7 +599,8 @@ class Rocket{
 const STAGE_CFG=[
   {shots:1,rings:1,pool:null,label:'第1競技',sub:'一本勝負'},
   {shots:2,rings:2,pool:null,label:'第2競技',sub:'二発競技'},
-  {shots:3,rings:3,pool:null,label:'第3競技',sub:'三発競技'},
+  {shots:3,rings:2,pool:null,label:'第3競技',sub:'三発競技'},
+  {shots:4,rings:3,pool:null,label:'第4競技',sub:'四発精選'},
 ];
 const FINALE_WAVES=[
   {t:0,   rockets:[{xp:.32,d:0},{xp:.50,d:14},{xp:.68,d:28}],rings:2},
@@ -794,7 +799,7 @@ function onExplodeEnd(){
   stageScores.push({avg,shots:[...shotScores]});
   state='SCORING';scT=0;scPh=0;
 }
-function maxScPhase(){return STAGE_CFG[stageIdx]?.shots===1?5:STAGE_CFG[stageIdx].shots+2;}
+function maxScPhase(){return STAGE_CFG[stageIdx]?.shots===1?6:STAGE_CFG[stageIdx].shots+2;}
 function advanceFromScore(){
   if(stageIdx<STAGE_CFG.length-1)initStage(stageIdx+1);
   else{state='FINALE_INTRO';finaleIntroT=150;}
@@ -982,12 +987,13 @@ function uiExploding(){if(scT>0){scT--;if(scT===0)onExplodeEnd();}}
 function uiScoringDetail(){
   if(!stageScores.length)return;
   const sc=stageScores[stageScores.length-1].shots[0];
-  scT++;const bs=[0,35,75,115,155,205];
-  for(let i=1;i<=5;i++)if(scT>=bs[i]&&scPh<i)scPh=i;
-  const pw=Math.min(360,W*0.90),ph=268,px=W/2-pw/2,py=IS_MOBILE?Math.max(H*0.08,H/2-ph/2):H*0.53;
+  scT++;const bs=[0,30,60,90,120,155,200];
+  for(let i=1;i<=6;i++)if(scT>=bs[i]&&scPh<i)scPh=i;
+  const pw=Math.min(360,W*0.90),ph=310,px=W/2-pw/2,py=IS_MOBILE?Math.max(H*0.06,H/2-ph/2):H*0.50;
   panel(px,py,pw,ph,'採　点　結　果');
   [{l:'玉の座り',m:30,v:sc.suwari},{l:'盆　　　',m:30,v:sc.bon},
-   {l:'肩　　　',m:20,v:sc.kata},{l:'消え口　',m:20,v:sc.kieguchi}
+   {l:'肩　　　',m:20,v:sc.kata},{l:'消え口　',m:20,v:sc.kieguchi},
+   {l:'彩　り　',m:20,v:sc.irodori}
   ].forEach((it,i)=>{
     const iy=py+52+i*42;
     txt(it.l,px+74,iy,13,'rgba(200,178,128,0.9)','center');
@@ -999,7 +1005,7 @@ function uiScoringDetail(){
       txt(`${it.v}`,px+pw-14,iy,15,'#ffdd88','right');
     }
   });
-  if(scPh>=5){
+  if(scPh>=6){
     const ty=py+ph-36;
     X.fillStyle='rgba(255,200,0,0.12)';X.beginPath();X.roundRect(px+10,ty-15,pw-20,32,4);X.fill();
     txt('合　計',px+pw*0.28,ty,14,'#ffcc44','center');
@@ -1026,8 +1032,8 @@ function uiScoringMulti(){
     const iy=py+50+i*56;
     const tn=FW_TYPES.find(t=>t.id===shotTypes[i])?.name||'';
     txt(`第${i+1}発　${tn}`,px+pw*0.3,iy-10,IS_MOBILE?14:11,'rgba(180,160,110,0.8)','center');
-    const bx=px+18,bw=pw-80,ra=sc.total/100;
-    const bc=ra>=.82?'#44ff99':ra>=.70?'#ffdd44':ra>=.55?'#ffaa44':'#ff6644';
+    const bx=px+18,bw=pw-80,ra=sc.total/120;
+    const bc=ra>=.82?'#44ff99':ra>=.68?'#ffdd44':ra>=.52?'#ffaa44':'#ff6644';
     X.fillStyle='rgba(255,200,0,0.09)';X.fillRect(bx,iy+8,bw,14);
     X.fillStyle=bc;X.globalAlpha=0.85;X.fillRect(bx,iy+8,bw*ra,14);X.globalAlpha=1;
     txt(`${sc.total}点`,px+pw-12,iy+15,14,'#ffdd88','right');
@@ -1098,7 +1104,8 @@ function uiFinale(){
     txt(`フィナーレ ${finaleShots.length}発　平均 ${favg}点`,W/2,H*0.13,fs(0.018,13),'rgba(180,220,255,0.7)');
   }
   const _stageTot=stageScores.reduce((a,s)=>a+s.avg,0);
-  const _unlock=_stageTot>=220; // 花火名人以上でFRENZY解放
+  const _maxTot=STAGE_CFG.length*120; // 4×120=480
+  const _unlock=_stageTot>=Math.round(_maxTot*0.70); // 70%以上(=336点)
   if(finaleTimer>FINALE_END&&finaleRockets.length===0&&fws.length===0){
     if(_unlock){state='FRENZY_INTRO';frenzyIntroT=90;}else{state='RESULTS';}return;
   }
@@ -1406,13 +1413,20 @@ function uiResults(){
   const stageTot=stageScores.reduce((a,s)=>a+s.avg,0);
   if(!newRecord&&stageTot>hiscore){hiscore=stageTot;localStorage.setItem('hanabi_hiscore',hiscore);newRecord=true;}
   let grade,gc,gsub;
-  if(stageTot>=270){grade='花火の神';gc='#fff';    gsub='神業！　完璧なタイミング！';}
-  else if(stageTot>=220){grade='花火名人';gc='#ffee22';gsub='名人の域！　頂点を射抜く腕前';}
-  else if(stageTot>=170){grade='花 火 師'; gc='#ffcc44';gsub='一流の腕前！　会場が沸いた';}
-  else if(stageTot>=120){grade='上　級';  gc='#88ccff';gsub='かなりの腕前！　頂点に近い';}
-  else if(stageTot>=80) {grade='中　級';  gc='#77ee99';gsub='まずまず！　タイミングを磨こう';}
-  else if(stageTot>=40) {grade='初心者';  gc='#aacc88';gsub='頂点でタップを意識しよう';}
-  else                  {grade='修行中';  gc='#aaa';   gsub='リングが出たらタップ！';}
+  if     (stageTot>=444){grade='花火の神';  gc='#ffffff'; gsub='神の域！　花火の極みに達した伝説の技';}
+  else if(stageTot>=404){grade='花火名人'; gc='#ffee22'; gsub='名人の域！　頂点を射抜く完璧な腕前';}
+  else if(stageTot>=364){grade='花 火 師'; gc='#ffcc44'; gsub='一流の演技！　会場が沸いた完璧な輝き';}
+  else if(stageTot>=324){grade='大 師 匠'; gc='#ffaa66'; gsub='熟達した腕前！　見事な技量';}
+  else if(stageTot>=284){grade='師　匠';   gc='#88eeff'; gsub='実力者！　高い精度を誇る';}
+  else if(stageTot>=248){grade='熟 練 師'; gc='#88ccff'; gsub='着実な上達！　あと一歩で師の域';}
+  else if(stageTot>=212){grade='上 級 者'; gc='#88ffcc'; gsub='かなりの腕前！　頂点を捉えてきた';}
+  else if(stageTot>=176){grade='中 級 上'; gc='#77ee99'; gsub='良い感覚！　タイミングが安定してきた';}
+  else if(stageTot>=144){grade='中　級';   gc='#aaffaa'; gsub='まずまず！　タイミングをもっと磨こう';}
+  else if(stageTot>=112){grade='中 級 下'; gc='#ccffaa'; gsub='もう少し！　頂点の瞬間を意識しよう';}
+  else if(stageTot>=80) {grade='初心者上'; gc='#aacc88'; gsub='成長中！　頂点でタップを続けよう';}
+  else if(stageTot>=52) {grade='初心者';   gc='#998866'; gsub='頂点でタップを意識しよう';}
+  else if(stageTot>=24) {grade='見習い';   gc='#888888'; gsub='練習あるのみ！　リングをよく見て';}
+  else                  {grade='入　門';   gc='#666666'; gsub='リングが出たらタップ！';}
   const hasFinale=finaleShots.length>0;
   const hasFrenzy=frenzyTotalFired>0;
   const detailRows=stageScores.length+(hasFinale?1:0)+(hasFrenzy?1:0);
@@ -1455,10 +1469,11 @@ function uiResults(){
   if(hasFrenzy){
     const fRow=stageScores.length+(hasFinale?1:0);
     txt(`連打クライマックス　${frenzyTotalFired}発`,W/2,py+212+fRow*dstep,fs(0.04,16),'rgba(255,140,60,0.92)');
-  } else if(stageTot<220){
-    // 未解放時ヒント
+  } else if(stageTot<336){
+    // 未解放時ヒント — あと何点か表示
     const fRow=stageScores.length+(hasFinale?1:0);
-    txt('花火名人以上で連打クライマックス解放！',W/2,py+212+fRow*dstep,fs(0.032,14),'rgba(160,140,90,0.55)');
+    const _need=336-stageTot;
+    txt(`全4競技70%以上で連打クライマックス解放（あと${_need}点）`,W/2,py+212+fRow*dstep,fs(0.028,13),'rgba(160,140,90,0.55)');
   }
   // ── Buttons below card ──────────────────────────────────────
   const byBtn=py+ph+btnGap;
